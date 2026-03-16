@@ -1007,7 +1007,7 @@
     const html = data.map((d, i) => {
       const col  = d.score >= 50 ? '#1D9E75' : d.score >= 43 ? '#FAC775' : '#EF9F27';
       const flag = d.country === 'ca' ? 'CA' : 'US';
-      return '<div class="afford-card" onclick="selectCity('' + d.city + '')" title="Click to view ' + d.city + '">'
+      return '<div class="afford-card" data-city="' + d.city.replace(/"/g,'&quot;') + '" title="Click to view ' + d.city + '">'
         + '<div class="afford-rank">#' + (i+1) + ' ' + flag + '</div>'
         + '<div class="afford-city">' + d.city.split(',')[0] + '</div>'
         + '<div class="afford-prov">' + (d.city.split(', ')[1] || d.prov) + '</div>'
@@ -1015,7 +1015,11 @@
         + '<div style="font-size:10px;color:var(--muted);margin-top:2px">pop. ' + d.pop + '</div>'
         + '</div>';
     }).join('');
-    document.getElementById('afford-grid').innerHTML = html;
+    const grid = document.getElementById('afford-grid');
+    grid.innerHTML = html;
+    grid.querySelectorAll('.afford-card').forEach(card => {
+      card.addEventListener('click', () => selectCity(card.dataset.city));
+    });
   }
 
   loadNational();
