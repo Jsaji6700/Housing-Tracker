@@ -1080,7 +1080,9 @@
   async function loadCityNews(cityName, forceCountry) {
     const city = cityName ? cityName.split(',')[0].trim() : '';
     const activeCountry = forceCountry || country;
-    document.getElementById('news-city-label').textContent = city ? '— ' + city : (activeCountry === 'ca' ? '— Canada' : '— United States');
+    document.getElementById('news-city-label').textContent = city
+      ? '— ' + city
+      : (activeCountry === 'ca' ? '— Canada' : '— United States');
     document.getElementById('news-feed').innerHTML = '<div class="news-loading">Loading news…</div>';
 
     const q = city
@@ -1088,60 +1090,22 @@
       : activeCountry === 'ca'
         ? 'Canada housing real estate mortgage CMHC affordability'
         : 'United States housing real estate mortgage rates affordability';
-    const gl   = activeCountry === 'ca' ? 'CA' : 'US';
-    const ceid = activeCountry === 'ca' ? 'CA:en' : 'US:en';
-    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en&gl=${gl}&ceid=${ceid}`;
 
-    // Try multiple proxies in order
-    const proxies = [
-      `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`,
-      `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`,
-      `https://thingproxy.freeboard.io/fetch/${rssUrl}`,
-    ];
-
-    let xml = null;
-    for (const proxy of proxies) {
-      try {
-        const r = await fetch(proxy, { signal: AbortSignal.timeout(5000) });
-        if (!r.ok) continue;
-        const text = await r.text();
-        // allorigins wraps in JSON
-        const raw = text.startsWith('{') ? JSON.parse(text).contents : text;
-        if (raw && raw.includes('<item>')) { xml = raw; break; }
-      } catch { continue; }
-    }
-
-    if (!xml) {
+    try {
+      const r = await fetch(`/api/news?q=${encodeURIComponent(q)}&country=${activeCountry}`);
+      const j = await r.json();
+      if (!j.items?.length) throw new Error('no items');
+      document.getElementById('news-feed').innerHTML = j.items.map(item => `
+        <div class="news-item">
+          <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+          <div class="news-src">${item.source || ''}${item.pubDate ? ' &bull; ' + timeAgo(new Date(item.pubDate)) : ''}</div>
+        </div>`).join('');
+    } catch {
       const fallback = city || (activeCountry === 'ca' ? 'Canada housing' : 'US housing market');
       document.getElementById('news-feed').innerHTML = `
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Could not load live feed.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Could not load feed.</div>
         <a href="https://news.google.com/search?q=${encodeURIComponent(fallback)}" target="_blank" style="font-size:12px;color:var(--blue)">Search news on Google &#8599;</a>`;
-      return;
     }
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'text/xml');
-    const items = [...doc.querySelectorAll('item')]
-      .map(item => ({
-        title: item.querySelector('title')?.textContent || '',
-        link:  item.querySelector('link')?.textContent || '#',
-        src:   item.querySelector('source')?.textContent || '',
-        date:  new Date(item.querySelector('pubDate')?.textContent || 0),
-      }))
-      .filter(i => i.title)
-      .sort((a, b) => b.date - a.date) // latest first
-      .slice(0, 8);
-
-    if (!items.length) {
-      document.getElementById('news-feed').innerHTML = `<div style="font-size:12px;color:var(--muted)">No stories found.</div>`;
-      return;
-    }
-
-    document.getElementById('news-feed').innerHTML = items.map(item => `
-      <div class="news-item">
-        <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-        <div class="news-src">${item.src}${item.date > 0 ? ' &bull; ' + timeAgo(item.date) : ''}</div>
-      </div>`).join('');
   }
 
   function timeAgo(date) {
