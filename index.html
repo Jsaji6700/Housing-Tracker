@@ -439,6 +439,9 @@
     {n:"Aurora, ON",c:"ca"},
     {n:"Newmarket, ON",c:"ca"},
     {n:"Ajax, ON",c:"ca"},
+    {n:"Whitehorse, YT",c:"ca",lat:60.72,lng:-135.05},
+    {n:"Yellowknife, NT",c:"ca",lat:62.45,lng:-114.38},
+    {n:"Iqaluit, NU",c:"ca",lat:63.75,lng:-68.52},
     {n:"Whitby, ON",c:"ca"},
     {n:"Pickering, ON",c:"ca"},
     {n:"Richmond Hill, ON",c:"ca"},
@@ -504,9 +507,6 @@
     {n:"St. John's, NL",c:"ca"},
     {n:"Corner Brook, NL",c:"ca"},
     {n:"Charlottetown, PE",c:"ca"},
-    {n:"Whitehorse, YT",c:"ca",lat:60.72,lng:-135.05},
-    {n:"Yellowknife, NT",c:"ca",lat:62.45,lng:-114.38},
-    {n:"Iqaluit, NU",c:"ca",lat:63.75,lng:-68.52},
     {n:"Scarborough, ON",c:"ca",lat:43.77,lng:-79.26},
     {n:"Etobicoke, ON",c:"ca",lat:43.69,lng:-79.55},
     {n:"North York, ON",c:"ca",lat:43.76,lng:-79.41},
@@ -545,9 +545,7 @@
     {n:"Truro, NS",c:"ca"},
     {n:"Miramichi, NB",c:"ca"},
     {n:"Bathurst, NB",c:"ca"},
-    // Territories
-    {n:"Yellowknife, NT",c:"ca",lat:62.45,lng:-114.38},
-    {n:"Iqaluit, NU",c:"ca",lat:63.75,lng:-68.52},
+    // Territories & small cities
     {n:"Dawson City, YT",c:"ca",lat:64.06,lng:-139.43},
     {n:"Watson Lake, YT",c:"ca",lat:60.06,lng:-128.71},
     {n:"Hay River, NT",c:"ca",lat:60.82,lng:-115.78},
@@ -846,7 +844,9 @@
     const q = searchInput.value.trim().toLowerCase();
     clearBtn.style.display = q ? 'block' : 'none';
     if (!q) { closeSugs(); return; }
-    currentSugs = CITIES.filter(c => c.n.toLowerCase().includes(q)).slice(0,8);
+    const starts = CITIES.filter(c => c.n.toLowerCase().startsWith(q));
+    const contains = CITIES.filter(c => !c.n.toLowerCase().startsWith(q) && c.n.toLowerCase().includes(q));
+    currentSugs = [...starts, ...contains].slice(0,8);
     if (!currentSugs.length) { closeSugs(); return; }
     sugBox.innerHTML = currentSugs.map((c,i) =>
       `<div class="sug-item" data-idx="${i}">
@@ -864,7 +864,7 @@
 
   searchInput.addEventListener('keydown', e => {
     if (!sugBox.classList.contains('open')) {
-      if (e.key==='Enter' && searchInput.value.trim()) { selectCity(searchInput.value.trim()); return; }
+      if (e.key==='Enter' && searchInput.value.trim()) { const best = currentSugs[0]; selectCity(best ? best.n : searchInput.value.trim()); return; }
       return;
     }
     const items = sugBox.querySelectorAll('.sug-item');
