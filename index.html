@@ -157,6 +157,29 @@
     .spread-pill.normal{background:rgba(29,158,117,.12);color:#5DCAA5;border:0.5px solid rgba(29,158,117,.3)}
     .spread-pill.flat{background:rgba(250,199,117,.1);color:#FAC775;border:0.5px solid rgba(250,199,117,.25)}
     @media(max-width:600px){.rates-grid{grid-template-columns:1fr}}
+
+    /* LISTINGS */
+    .listings-section{margin-bottom:12px}
+    .listings-tabs{display:flex;gap:8px;margin-bottom:10px}
+    .ltab{background:none;border:0.5px solid var(--border);border-radius:999px;padding:5px 14px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .2s;font-family:var(--font-sans)}
+    .ltab.active{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+    .ltab:hover{border-color:var(--border2);color:var(--text)}
+    .listings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+    .listing-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .2s;text-decoration:none;display:block}
+    .listing-card:hover{border-color:var(--border2)}
+    .listing-img{width:100%;height:110px;object-fit:cover;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px}
+    .listing-body{padding:10px}
+    .listing-price{font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+    .listing-addr{font-size:11px;color:var(--muted);margin-bottom:4px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .listing-meta{font-size:11px;color:var(--muted);display:flex;gap:8px}
+    .listing-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:999px;margin-bottom:5px}
+    .listing-tag.pos{background:rgba(226,75,74,.12);color:#f09595;border:0.5px solid rgba(226,75,74,.25)}
+    .listing-tag.sale{background:rgba(29,158,117,.1);color:#5DCAA5;border:0.5px solid rgba(29,158,117,.25)}
+    .listings-empty{font-size:12px;color:var(--muted);padding:1rem;text-align:center}
+    .listings-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);text-decoration:none;padding:8px 14px;border:0.5px solid rgba(55,138,221,.3);border-radius:var(--rs);margin:4px}
+    .listings-link:hover{background:rgba(55,138,221,.08)}
+    .listings-count{font-size:11px;color:var(--muted);margin-bottom:8px}
+    @media(max-width:600px){.listings-grid{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
@@ -252,6 +275,20 @@
     </div>
   </div>
 
+
+  <!-- LISTINGS -->
+  <div class="listings-section" id="listings-section" style="display:none">
+    <div class="section-title" id="listings-title">Properties</div>
+    <div class="listings-tabs">
+      <button class="ltab active" id="ltab-sale" onclick="showListingTab('sale')">For Sale</button>
+      <button class="ltab" id="ltab-fore" onclick="showListingTab('fore')">Power of Sale / Foreclosure</button>
+    </div>
+    <div class="listings-count" id="listings-count"></div>
+    <div id="listings-content">
+      <div class="listings-empty">Loading listings&hellip;</div>
+    </div>
+  </div>
+
   <!-- BREAKDOWN LEGENDS -->
   <div class="breakdown-grid">
     <div class="bd-card">
@@ -307,20 +344,132 @@
 <script>
   // ── City list for autocomplete ──────────────────────────────────────────────
   const CITIES = [
-    {n:"New York, NY",      c:"us"}, {n:"Los Angeles, CA",   c:"us"}, {n:"Chicago, IL",       c:"us"},
-    {n:"Dallas, TX",        c:"us"}, {n:"Houston, TX",       c:"us"}, {n:"Phoenix, AZ",       c:"us"},
-    {n:"Philadelphia, PA",  c:"us"}, {n:"San Antonio, TX",   c:"us"}, {n:"San Diego, CA",     c:"us"},
-    {n:"San Francisco, CA", c:"us"}, {n:"Seattle, WA",       c:"us"}, {n:"Denver, CO",        c:"us"},
-    {n:"Boston, MA",        c:"us"}, {n:"Austin, TX",        c:"us"}, {n:"Miami, FL",         c:"us"},
-    {n:"Atlanta, GA",       c:"us"}, {n:"Minneapolis, MN",   c:"us"}, {n:"Portland, OR",      c:"us"},
-    {n:"Las Vegas, NV",     c:"us"}, {n:"Nashville, TN",     c:"us"}, {n:"Charlotte, NC",     c:"us"},
-    {n:"Raleigh, NC",       c:"us"}, {n:"Orlando, FL",       c:"us"}, {n:"Tampa, FL",         c:"us"},
-    {n:"Sacramento, CA",    c:"us"}, {n:"Kansas City, MO",   c:"us"}, {n:"Columbus, OH",      c:"us"},
-    {n:"Indianapolis, IN",  c:"us"}, {n:"Pittsburgh, PA",    c:"us"},
-    {n:"Toronto, ON",       c:"ca"}, {n:"Vancouver, BC",     c:"ca"}, {n:"Montreal, QC",      c:"ca"},
-    {n:"Calgary, AB",       c:"ca"}, {n:"Ottawa, ON",        c:"ca"}, {n:"Edmonton, AB",      c:"ca"},
-    {n:"Winnipeg, MB",      c:"ca"}, {n:"Quebec City, QC",   c:"ca"},
+    {n:"New York, NY",c:"us"},
+    {n:"Los Angeles, CA",c:"us"},
+    {n:"Chicago, IL",c:"us"},
+    {n:"Dallas, TX",c:"us"},
+    {n:"Houston, TX",c:"us"},
+    {n:"Phoenix, AZ",c:"us"},
+    {n:"Philadelphia, PA",c:"us"},
+    {n:"San Antonio, TX",c:"us"},
+    {n:"San Diego, CA",c:"us"},
+    {n:"San Francisco, CA",c:"us"},
+    {n:"Seattle, WA",c:"us"},
+    {n:"Denver, CO",c:"us"},
+    {n:"Boston, MA",c:"us"},
+    {n:"Austin, TX",c:"us"},
+    {n:"Miami, FL",c:"us"},
+    {n:"Atlanta, GA",c:"us"},
+    {n:"Minneapolis, MN",c:"us"},
+    {n:"Portland, OR",c:"us"},
+    {n:"Las Vegas, NV",c:"us"},
+    {n:"Nashville, TN",c:"us"},
+    {n:"Charlotte, NC",c:"us"},
+    {n:"Raleigh, NC",c:"us"},
+    {n:"Orlando, FL",c:"us"},
+    {n:"Tampa, FL",c:"us"},
+    {n:"Sacramento, CA",c:"us"},
+    {n:"Kansas City, MO",c:"us"},
+    {n:"Columbus, OH",c:"us"},
+    {n:"Indianapolis, IN",c:"us"},
+    {n:"Pittsburgh, PA",c:"us"},
+    {n:"Toronto, ON",c:"ca"},
+    {n:"Ottawa, ON",c:"ca"},
+    {n:"Mississauga, ON",c:"ca"},
+    {n:"Brampton, ON",c:"ca"},
+    {n:"Hamilton, ON",c:"ca"},
+    {n:"London, ON",c:"ca"},
+    {n:"Markham, ON",c:"ca"},
+    {n:"Vaughan, ON",c:"ca"},
+    {n:"Kitchener, ON",c:"ca"},
+    {n:"Windsor, ON",c:"ca"},
+    {n:"Oshawa, ON",c:"ca"},
+    {n:"Barrie, ON",c:"ca"},
+    {n:"Guelph, ON",c:"ca"},
+    {n:"St. Catharines, ON",c:"ca"},
+    {n:"Cambridge, ON",c:"ca"},
+    {n:"Kingston, ON",c:"ca"},
+    {n:"Greater Sudbury, ON",c:"ca"},
+    {n:"Thunder Bay, ON",c:"ca"},
+    {n:"Waterloo, ON",c:"ca"},
+    {n:"Brantford, ON",c:"ca"},
+    {n:"Peterborough, ON",c:"ca"},
+    {n:"North Bay, ON",c:"ca"},
+    {n:"Sault Ste. Marie, ON",c:"ca"},
+    {n:"Sarnia, ON",c:"ca"},
+    {n:"Belleville, ON",c:"ca"},
+    {n:"Niagara Falls, ON",c:"ca"},
+    {n:"Welland, ON",c:"ca"},
+    {n:"Aurora, ON",c:"ca"},
+    {n:"Newmarket, ON",c:"ca"},
+    {n:"Ajax, ON",c:"ca"},
+    {n:"Whitby, ON",c:"ca"},
+    {n:"Pickering, ON",c:"ca"},
+    {n:"Richmond Hill, ON",c:"ca"},
+    {n:"Oakville, ON",c:"ca"},
+    {n:"Burlington, ON",c:"ca"},
+    {n:"Kenora, ON",c:"ca"},
+    {n:"Fort Frances, ON",c:"ca"},
+    {n:"Timmins, ON",c:"ca"},
+    {n:"Dryden, ON",c:"ca"},
+    {n:"Sioux Lookout, ON",c:"ca"},
+    {n:"Kapuskasing, ON",c:"ca"},
+    {n:"Kirkland Lake, ON",c:"ca"},
+    {n:"Temiskaming Shores, ON",c:"ca"},
+    {n:"Elliot Lake, ON",c:"ca"},
+    {n:"Parry Sound, ON",c:"ca"},
+    {n:"Bracebridge, ON",c:"ca"},
+    {n:"Huntsville, ON",c:"ca"},
+    {n:"Gravenhurst, ON",c:"ca"},
+    {n:"Cochrane, ON",c:"ca"},
+    {n:"Hearst, ON",c:"ca"},
+    {n:"Vancouver, BC",c:"ca"},
+    {n:"Surrey, BC",c:"ca"},
+    {n:"Burnaby, BC",c:"ca"},
+    {n:"Richmond, BC",c:"ca"},
+    {n:"Kelowna, BC",c:"ca"},
+    {n:"Abbotsford, BC",c:"ca"},
+    {n:"Coquitlam, BC",c:"ca"},
+    {n:"Victoria, BC",c:"ca"},
+    {n:"Nanaimo, BC",c:"ca"},
+    {n:"Kamloops, BC",c:"ca"},
+    {n:"Prince George, BC",c:"ca"},
+    {n:"Chilliwack, BC",c:"ca"},
+    {n:"Calgary, AB",c:"ca"},
+    {n:"Edmonton, AB",c:"ca"},
+    {n:"Red Deer, AB",c:"ca"},
+    {n:"Lethbridge, AB",c:"ca"},
+    {n:"Fort McMurray, AB",c:"ca"},
+    {n:"Grande Prairie, AB",c:"ca"},
+    {n:"Medicine Hat, AB",c:"ca"},
+    {n:"Airdrie, AB",c:"ca"},
+    {n:"St. Albert, AB",c:"ca"},
+    {n:"Spruce Grove, AB",c:"ca"},
+    {n:"Montreal, QC",c:"ca"},
+    {n:"Quebec City, QC",c:"ca"},
+    {n:"Laval, QC",c:"ca"},
+    {n:"Gatineau, QC",c:"ca"},
+    {n:"Longueuil, QC",c:"ca"},
+    {n:"Sherbrooke, QC",c:"ca"},
+    {n:"Saguenay, QC",c:"ca"},
+    {n:"Trois-Rivieres, QC",c:"ca"},
+    {n:"Winnipeg, MB",c:"ca"},
+    {n:"Brandon, MB",c:"ca"},
+    {n:"Steinbach, MB",c:"ca"},
+    {n:"Saskatoon, SK",c:"ca"},
+    {n:"Regina, SK",c:"ca"},
+    {n:"Prince Albert, SK",c:"ca"},
+    {n:"Moose Jaw, SK",c:"ca"},
+    {n:"Halifax, NS",c:"ca"},
+    {n:"Cape Breton, NS",c:"ca"},
+    {n:"Moncton, NB",c:"ca"},
+    {n:"Saint John, NB",c:"ca"},
+    {n:"Fredericton, NB",c:"ca"},
+    {n:"St. John's, NL",c:"ca"},
+    {n:"Corner Brook, NL",c:"ca"},
+    {n:"Charlottetown, PE",c:"ca"},
   ];
+
 
   // ── State ───────────────────────────────────────────────────────────────────
   let NATIONAL = {us:null, ca:null};
@@ -443,6 +592,8 @@
       setPulse('live','Live data — '+j.city);
       render(j.data, j.city, j.country);
       if (j.rates) renderRates(j.rates, j.country);
+      document.getElementById('listings-title').textContent = 'Properties in ' + j.city;
+      renderListings(j.listings || null);
       // Sync country toggle to city's country
       const toggle = document.getElementById('country-toggle');
       toggle.checked = (j.country === 'ca');
@@ -524,6 +675,7 @@
     document.getElementById('error-note').style.display = 'none';
     render(NATIONAL[country]);
     renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+    renderListings(null);
     setPulse('live','Live data');
     document.getElementById('updated-txt').textContent = lastUpdated
       ? 'Last updated: '+lastUpdated.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'})
@@ -614,6 +766,76 @@
     });
     iHtml += '<div style="font-size:10px;color:var(--muted);margin-top:4px">Vertical line = 2% target &mdash; bar scale 0&ndash;8%</div>';
     document.getElementById('infl-rows').innerHTML = iHtml || '<div style="color:var(--muted);font-size:12px">No inflation data</div>';
+  }
+
+
+  // ── Listings ─────────────────────────────────────────────────────────────────
+  let currentListings = null;
+  let currentListingTab = 'sale';
+
+  function showListingTab(tab) {
+    currentListingTab = tab;
+    document.getElementById('ltab-sale').classList.toggle('active', tab === 'sale');
+    document.getElementById('ltab-fore').classList.toggle('active', tab === 'fore');
+    renderListings(currentListings);
+  }
+
+  function renderListings(data) {
+    currentListings = data;
+    const section = document.getElementById('listings-section');
+    if (!data) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    const isUS = !data.source || data.source === 'realtor.com';
+
+    // US — show search links
+    if (isUS && data.searchUrl) {
+      document.getElementById('listings-count').textContent = '';
+      document.getElementById('listings-content').innerHTML =
+        '<div style="padding:8px 0">' +
+        '<a class="listings-link" href="' + data.searchUrl + '" target="_blank">View homes for sale on realtor.com &#8599;</a>' +
+        '<a class="listings-link" href="' + data.foreclosureUrl + '" target="_blank">View foreclosures on realtor.com &#8599;</a>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:6px">' + (data.note || '') + '</div>';
+      return;
+    }
+
+    const items = currentListingTab === 'sale' ? (data.forSale || []) : (data.foreclosures || []);
+    const total = data.total;
+
+    if (currentListingTab === 'sale' && total) {
+      document.getElementById('listings-count').textContent = total.toLocaleString() + ' active listings in area';
+    } else {
+      document.getElementById('listings-count').textContent = '';
+    }
+
+    if (!items.length) {
+      document.getElementById('listings-content').innerHTML =
+        '<div class="listings-empty">' +
+        (currentListingTab === 'fore' ? 'No power of sale listings found in this area.' : 'No listings found.') +
+        '</div>';
+      return;
+    }
+
+    const html = items.map(p => {
+      const imgHtml = p.photo
+        ? '<img class="listing-img" src="' + p.photo + '" alt="property" loading="lazy">'
+        : '<div class="listing-img">No photo</div>';
+      const tag = currentListingTab === 'fore'
+        ? '<span class="listing-tag pos">Power of Sale</span>'
+        : '<span class="listing-tag sale">For Sale</span>';
+      const meta = [p.beds ? p.beds + ' bd' : null, p.baths ? p.baths + ' ba' : null, p.type || null].filter(Boolean).join(' &bull; ');
+      const mls = p.mls ? '<div style="font-size:10px;color:var(--muted);margin-top:3px">MLS ' + p.mls + '</div>' : '';
+      return '<a class="listing-card" href="' + (p.url || '#') + '" target="_blank">' +
+        imgHtml +
+        '<div class="listing-body">' + tag +
+        '<div class="listing-price">' + (p.price || 'Price N/A') + '</div>' +
+        '<div class="listing-addr">' + (p.address || '') + '</div>' +
+        '<div class="listing-meta">' + meta + '</div>' + mls +
+        '</div></a>';
+    }).join('');
+
+    document.getElementById('listings-content').innerHTML = '<div class="listings-grid">' + html + '</div>';
   }
 
   loadNational();
