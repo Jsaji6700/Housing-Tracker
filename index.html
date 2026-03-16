@@ -929,7 +929,7 @@
         const url   = p.RelativeDetailsURL ? 'https://www.realtor.ca' + p.RelativeDetailsURL : '#';
         const mls   = p.MlsNumber || '';
         const imgHtml = photo
-          ? '<img style="width:100%;height:100px;object-fit:cover;border-radius:var(--rs) var(--rs) 0 0" src="' + photo + '" loading="lazy" onerror="this.style.display='none'">'
+          ? '<img style="width:100%;height:100px;object-fit:cover;border-radius:var(--rs) var(--rs) 0 0" src="' + photo + '" loading="lazy" onerror="this.style.display=\'none\'">'
           : '<div style="width:100%;height:60px;background:var(--surface2);border-radius:var(--rs) var(--rs) 0 0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">No photo</div>';
         return '<a class="listing-card" href="' + url + '" target="_blank">'
           + imgHtml
@@ -1110,64 +1110,8 @@
     });
   }
 
-
-  const AFFORD_DATA = [
-    {city:"Hearst, ON",            prov:"ON", score:44.1, pop:"4,722",   country:"ca", lat:49.69, lng:-83.67},
-    {city:"Sioux Lookout, ON",     prov:"ON", score:44.1, pop:"5,272",   country:"ca", lat:50.09, lng:-91.91},
-    {city:"Cochrane, ON",          prov:"ON", score:43.6, pop:"5,340",   country:"ca", lat:49.06, lng:-81.01},
-    {city:"Kapuskasing, ON",       prov:"ON", score:43.6, pop:"8,177",   country:"ca", lat:49.42, lng:-82.43},
-    {city:"Fort Frances, ON",      prov:"ON", score:43.6, pop:"7,559",   country:"ca", lat:48.61, lng:-93.40},
-    {city:"Dryden, ON",            prov:"ON", score:43.6, pop:"7,749",   country:"ca", lat:49.78, lng:-92.84},
-    {city:"Elliot Lake, ON",       prov:"ON", score:43.6, pop:"10,741",  country:"ca", lat:46.38, lng:-82.65},
-    {city:"Kirkland Lake, ON",     prov:"ON", score:43.1, pop:"7,981",   country:"ca", lat:48.15, lng:-80.03},
-    {city:"Kenora, ON",            prov:"ON", score:43.1, pop:"15,096",  country:"ca", lat:49.77, lng:-94.49},
-    {city:"Temiskaming Shores, ON",prov:"ON", score:43.1, pop:"9,920",   country:"ca", lat:47.52, lng:-79.68},
-    {city:"Timmins, ON",           prov:"ON", score:41.6, pop:"41,788",  country:"ca", lat:48.47, lng:-81.33},
-    {city:"Moose Jaw, SK",         prov:"SK", score:41.6, pop:"34,421",  country:"ca", lat:50.39, lng:-105.53},
-    {city:"Prince Albert, SK",     prov:"SK", score:41.6, pop:"37,756",  country:"ca", lat:53.20, lng:-105.75},
-    {city:"Brandon, MB",           prov:"MB", score:40.6, pop:"51,313",  country:"ca", lat:49.85, lng:-99.95},
-    {city:"Corner Brook, NL",      prov:"NL", score:41.1, pop:"19,770",  country:"ca", lat:48.95, lng:-57.95},
-    {city:"Cape Breton, NS",       prov:"NS", score:40.6, pop:"94,285",  country:"ca", lat:46.14, lng:-60.19},
-    {city:"Regina, SK",            prov:"SK", score:40.1, pop:"249,217", country:"ca", lat:50.45, lng:-104.62},
-    {city:"Saskatoon, SK",         prov:"SK", score:39.6, pop:"317,480", country:"ca", lat:52.13, lng:-106.67},
-    {city:"Winnipeg, MB",          prov:"MB", score:40.1, pop:"749,607", country:"ca", lat:49.90, lng:-97.14},
-    {city:"Saguenay, QC",          prov:"QC", score:40.6, pop:"160,980", country:"ca", lat:48.42, lng:-71.07},
-    {city:"Indianapolis, IN",      prov:"IN", score:52.1, pop:"887,642", country:"us", lat:39.77, lng:-86.16},
-    {city:"Columbus, OH",          prov:"OH", score:51.8, pop:"905,748", country:"us", lat:39.96, lng:-82.99},
-    {city:"Kansas City, MO",       prov:"MO", score:51.5, pop:"508,090", country:"us", lat:39.10, lng:-94.58},
-    {city:"Pittsburgh, PA",        prov:"PA", score:51.2, pop:"302,971", country:"us", lat:40.44, lng:-79.99},
-    {city:"Las Vegas, NV",         prov:"NV", score:50.8, pop:"641,903", country:"us", lat:36.17, lng:-115.14},
-  ];
-
-  function renderAffordable(filter) {
-    const data = filter === 'ca' ? AFFORD_DATA.filter(d => d.country === 'ca')
-               : filter === 'us' ? AFFORD_DATA.filter(d => d.country === 'us')
-               : AFFORD_DATA;
-    ['all','ca','us'].forEach(f => {
-      const el = document.getElementById('afford-tab-' + f);
-      if (el) el.classList.toggle('active', f === filter);
-    });
-    const html = data.map((d, i) => {
-      const col  = d.score >= 50 ? '#1D9E75' : d.score >= 43 ? '#FAC775' : '#EF9F27';
-      const flag = d.country === 'ca' ? 'CA' : 'US';
-      return '<div class="afford-card" data-city="' + d.city.replace(/"/g,'&quot;') + '" title="View ' + d.city + '">'
-        + '<div class="afford-rank">#' + (i+1) + ' ' + flag + '</div>'
-        + '<div class="afford-city">' + d.city.split(',')[0] + '</div>'
-        + '<div class="afford-prov">' + (d.city.split(', ')[1] || d.prov) + '</div>'
-        + '<div class="afford-score" style="color:' + col + '">' + d.score.toFixed(1) + '</div>'
-        + '<div style="font-size:10px;color:var(--muted);margin-top:2px">pop. ' + d.pop + '</div>'
-        + '</div>';
-    }).join('');
-    const grid = document.getElementById('afford-grid');
-    grid.innerHTML = html;
-    grid.querySelectorAll('.afford-card').forEach(card => {
-      card.addEventListener('click', () => selectCity(card.dataset.city));
-    });
-  }
-
   loadNational();
   setInterval(loadNational, 3600000);
-  renderAffordable('all');
   renderAffordable('all');
 </script>
 </body>
