@@ -223,7 +223,28 @@
     .attraction-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
     .attraction-item{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
     .attraction-item span:first-child{font-size:13px}
-    .widget-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    /* ── EXPLORE NEARBY ── */
+    .explore-tabs{display:flex;gap:6px;flex-wrap:wrap}
+    .etab{background:var(--surface2);border:0.5px solid var(--border);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:var(--font-sans);transition:all .15s;white-space:nowrap}
+    .etab:hover{border-color:var(--border2);color:var(--text)}
+    .etab.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+    .explore-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+    .place-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;transition:border-color .2s,transform .15s}
+    .place-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+    .place-photo{width:100%;height:130px;object-fit:cover;display:block}
+    .place-photo-placeholder{width:100%;height:130px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px}
+    .place-body{padding:10px 12px}
+    .place-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;line-height:1.3}
+    .place-type{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+    .place-dist{font-size:11px;color:var(--muted);margin-top:4px}
+    .place-actions{display:flex;gap:6px;margin-top:8px}
+    .place-btn{flex:1;padding:5px 0;border-radius:6px;font-size:11px;font-family:var(--font-sans);cursor:pointer;text-align:center;text-decoration:none;transition:all .15s;display:block;border:0.5px solid var(--border)}
+    .place-btn-map{background:var(--blue);color:#fff !important;border-color:var(--blue)}
+    .place-btn-map:hover{opacity:.85}
+    .place-btn-nav{background:transparent;color:var(--muted) !important}
+    .place-btn-nav:hover{border-color:var(--border2);color:var(--text) !important}
+    .explore-empty{font-size:12px;color:var(--muted);padding:24px 0;text-align:center;grid-column:1/-1}
+    @keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
     @media(max-width:600px){.widget-row{grid-template-columns:1fr}}
     .widget{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1.25rem}
     .widget h3{font-size:10px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
@@ -433,16 +454,27 @@
         <a class="insight-link" id="commute-link" href="#" target="_blank">View transit ↗</a>
       </div>
 
-      <!-- Attractions -->
-      <div class="insight-card">
-        <span class="insight-icon">📍</span>
-        <div class="insight-label">Nearby Attractions</div>
-        <div class="attraction-list" id="attractions-list">
-          <div class="insight-desc">Loading…</div>
-        </div>
-        <a class="insight-link" id="attractions-link" href="#" target="_blank">Explore on map ↗</a>
-      </div>
+      <!-- Attractions - now in its own full section below -->
 
+    </div>
+  </div>
+
+  <!-- ── EXPLORE NEARBY: Full attractions section ── -->
+  <div id="explore-section" style="display:none;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="section-title" style="margin:0">Explore Nearby</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px" id="explore-subtitle">Within 25 km</div>
+      </div>
+      <div class="explore-tabs" id="explore-tabs">
+        <button class="etab active" data-cat="attraction" onclick="filterExplore('attraction')">🏛 Attractions</button>
+        <button class="etab" data-cat="restaurant" onclick="filterExplore('restaurant')">🍽 Restaurants</button>
+        <button class="etab" data-cat="park" onclick="filterExplore('park')">🌳 Parks</button>
+        <button class="etab" data-cat="shop" onclick="filterExplore('shop')">🛍 Shopping</button>
+      </div>
+    </div>
+    <div id="explore-grid" class="explore-grid">
+      <div style="font-size:12px;color:var(--muted);padding:20px 0">Loading nearby places…</div>
     </div>
   </div>
 
@@ -1076,12 +1108,6 @@
     document.getElementById('commute-link').href = `https://www.google.com/maps/search/${encodeURIComponent(city + ' transit')}`;
 
     // ── Nearby Attractions ────────────────────────────────────────────────────
-    document.getElementById('attractions-list').innerHTML = '<div class="insight-desc">Searching…</div>';
-    if (lat && lng) {
-      await loadAttractions(lat, lng, city);
-    } else {
-      document.getElementById('attractions-list').innerHTML = '<div class="insight-desc">No coordinates available.</div>';
-    }
     document.getElementById('attractions-link').href = `https://www.google.com/maps/search/attractions+near+${encodeURIComponent(city)}`;
   }
 
@@ -1123,41 +1149,165 @@
     return h;
   }
 
-  async function loadAttractions(lat, lng, cityName) {
-    // Use Overpass API (OpenStreetMap) to get real nearby attractions
-    const types = ['tourism~"attraction|museum|gallery|viewpoint|theme_park|zoo"', 'leisure~"park|nature_reserve|stadium"', 'amenity~"theatre|cinema|arts_centre"'];
-    const query = `[out:json][timeout:8];(node["tourism"~"attraction|museum|gallery|viewpoint|zoo"](around:15000,${lat},${lng});node["leisure"~"park|nature_reserve|stadium"](around:10000,${lat},${lng});node["amenity"~"theatre|cinema|arts_centre"](around:10000,${lat},${lng}););out 20;`;
-    const icons = { museum:'🏛', gallery:'🖼', park:'🌳', nature_reserve:'🌿', stadium:'🏟', theatre:'🎭', cinema:'🎬', zoo:'🦁', attraction:'📍', viewpoint:'🔭', theme_park:'🎡', arts_centre:'🎨' };
+  // ── Explore Nearby ────────────────────────────────────────────────────────
+  let _exploreLat = null, _exploreLng = null, _exploreCity = '';
+  let _exploreData = { attraction:[], restaurant:[], park:[], shop:[] };
+  let _exploreActive = 'attraction';
+
+  const PLACE_ICONS = {
+    museum:'🏛', gallery:'🖼', zoo:'🦁', theme_park:'🎡', viewpoint:'🔭',
+    attraction:'📍', monument:'🗿', artwork:'🎨', ruins:'🏚',
+    restaurant:'🍽', cafe:'☕', fast_food:'🍔', bar:'🍺', pub:'🍺', food_court:'🍱',
+    park:'🌳', nature_reserve:'🌿', garden:'🌸', forest:'🌲', beach:'🏖', playground:'🛝',
+    mall:'🏬', supermarket:'🛒', department_store:'🛍', clothes:'👗', marketplace:'🏪',
+    cinema:'🎬', theatre:'🎭', arts_centre:'🎨', stadium:'🏟', sports_centre:'⚽',
+  };
+
+  const CAT_QUERY = {
+    attraction: `(
+      node["tourism"~"attraction|museum|gallery|zoo|theme_park|viewpoint|monument|artwork"](around:25000,LAT,LNG);
+      node["amenity"~"theatre|cinema|arts_centre"](around:25000,LAT,LNG);
+      node["leisure"~"stadium|sports_centre"](around:20000,LAT,LNG);
+    )`,
+    restaurant: `(
+      node["amenity"~"restaurant|cafe|fast_food|bar|pub|food_court"](around:10000,LAT,LNG);
+    )`,
+    park: `(
+      node["leisure"~"park|nature_reserve|garden|playground"](around:25000,LAT,LNG);
+      node["natural"~"beach|wood|forest"](around:25000,LAT,LNG);
+      way["leisure"~"park|nature_reserve|garden"](around:25000,LAT,LNG);
+    )`,
+    shop: `(
+      node["shop"~"mall|supermarket|department_store|clothes|marketplace|convenience"](around:10000,LAT,LNG);
+    )`,
+  };
+
+  async function loadExploreSection(lat, lng, cityName) {
+    _exploreLat = lat; _exploreLng = lng; _exploreCity = cityName;
+    _exploreData = { attraction:[], restaurant:[], park:[], shop:[] };
+    document.getElementById('explore-section').style.display = 'block';
+    document.getElementById('explore-subtitle').textContent = 'Within 25 km of ' + cityName.split(',')[0];
+    filterExplore('attraction');
+    // Fetch all categories in background
+    for (const cat of ['attraction','restaurant','park','shop']) {
+      fetchCategory(cat, lat, lng);
+    }
+  }
+
+  async function fetchCategory(cat, lat, lng) {
+    const q = CAT_QUERY[cat].replace(/LAT/g, lat).replace(/LNG/g, lng);
+    const body = `[out:json][timeout:12];${q};out 30;`;
     try {
       const r = await fetch('https://overpass-api.de/api/interpreter', {
-        method:'POST', body:'data=' + encodeURIComponent(query),
-        signal: AbortSignal.timeout(8000)
+        method:'POST', body:'data='+encodeURIComponent(body),
+        signal: AbortSignal.timeout(12000)
       });
       const j = await r.json();
       const seen = new Set();
-      const places = (j.elements || [])
-        .filter(e => e.tags?.name && !seen.has(e.tags.name) && seen.add(e.tags.name))
-        .slice(0, 6)
+      _exploreData[cat] = (j.elements||[])
+        .filter(e => {
+          const name = e.tags?.name;
+          if (!name || seen.has(name)) return false;
+          seen.add(name);
+          return true;
+        })
         .map(e => {
-          const type = Object.keys(icons).find(k => e.tags[k] || e.tags.tourism === k || e.tags.leisure === k || e.tags.amenity === k) || 'attraction';
-          return { name: e.tags.name, icon: icons[type] || '📍' };
-        });
-      if (!places.length) throw new Error('none');
-      document.getElementById('attractions-list').innerHTML = places.map(p =>
-        `<div class="attraction-item"><span>${p.icon}</span><span>${p.name}</span></div>`
-      ).join('');
-    } catch {
-      // Fallback: generic categories with Google Maps links
-      const fallbacks = [
-        { icon:'🌳', name:'Parks & Nature' },
-        { icon:'🏛', name:'Museums & Culture' },
-        { icon:'🍽', name:'Local Dining' },
-        { icon:'🛍', name:'Shopping' },
-      ];
-      document.getElementById('attractions-list').innerHTML = fallbacks.map(p =>
-        `<div class="attraction-item"><span>${p.icon}</span><span>${p.name}</span></div>`
-      ).join('') + `<div style="font-size:10px;color:var(--muted);margin-top:4px">Live data unavailable</div>`;
+          const tags = e.tags || {};
+          const typeKey = Object.keys(PLACE_ICONS).find(k =>
+            tags.tourism===k||tags.leisure===k||tags.amenity===k||tags.shop===k||tags.natural===k
+          ) || cat;
+          const dist = lat && lng && e.lat && e.lon
+            ? haversine(lat, lng, e.lat, e.lon) : null;
+          return {
+            name: tags.name,
+            type: typeKey,
+            icon: PLACE_ICONS[typeKey] || '📍',
+            dist,
+            lat: e.lat || (e.center?.lat),
+            lng: e.lon || (e.center?.lon),
+            website: tags.website || tags['contact:website'] || null,
+            wikidata: tags.wikidata || null,
+            wikipedia: tags.wikipedia || null,
+          };
+        })
+        .filter(p => p.lat && p.lng)
+        .sort((a,b) => (a.dist||99) - (b.dist||99))
+        .slice(0, 12);
+      if (cat === _exploreActive) renderExploreGrid(_exploreActive);
+    } catch { /* silently fail */ }
+  }
+
+  function filterExplore(cat) {
+    _exploreActive = cat;
+    document.querySelectorAll('.etab').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+    renderExploreGrid(cat);
+  }
+
+  function renderExploreGrid(cat) {
+    const grid = document.getElementById('explore-grid');
+    const places = _exploreData[cat];
+    if (!places || !places.length) {
+      grid.innerHTML = '<div class="explore-empty">Loading… or no places found nearby.</div>';
+      return;
     }
+    grid.innerHTML = places.map(p => {
+      const distStr = p.dist ? (p.dist < 1 ? Math.round(p.dist*1000)+'m' : p.dist.toFixed(1)+'km') : '';
+      const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(p.name)}/@${p.lat},${p.lng},15z`;
+      const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&destination_place_id=${encodeURIComponent(p.name)}`;
+      const wikiImg = p.wikipedia ? getWikiImage(p.wikipedia) : null;
+      return `<div class="place-card">
+        ${wikiImg
+          ? `<img class="place-photo" src="${wikiImg}" alt="${p.name}" loading="lazy" onerror="this.parentNode.querySelector('.place-photo-placeholder').style.display='flex';this.style.display='none'">`
+          : ''}
+        <div class="place-photo-placeholder" style="${wikiImg ? 'display:none' : ''}">${p.icon}</div>
+        <div class="place-body">
+          <div class="place-name">${p.name}</div>
+          <div class="place-type">${p.type.replace(/_/g,' ')}</div>
+          ${distStr ? `<div class="place-dist">📍 ${distStr} away</div>` : ''}
+          <div class="place-actions">
+            <a class="place-btn place-btn-map" href="${mapsUrl}" target="_blank">View on map</a>
+            <a class="place-btn place-btn-nav" href="${navUrl}" target="_blank">Directions</a>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Fetch Wikipedia image URL for a place
+  const _wikiImgCache = {};
+  function getWikiImage(wikipedia) {
+    if (!wikipedia) return null;
+    const title = wikipedia.replace(/^[a-z]+:/, '');
+    if (_wikiImgCache[title] !== undefined) return _wikiImgCache[title];
+    _wikiImgCache[title] = null; // mark as fetching
+    const api = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+    fetch(api, { signal: AbortSignal.timeout(5000) })
+      .then(r => r.json())
+      .then(j => {
+        const url = j?.thumbnail?.source || null;
+        _wikiImgCache[title] = url;
+        // Re-render if still on same tab
+        if (_exploreActive && url) {
+          const imgs = document.querySelectorAll('.place-photo');
+          imgs.forEach(img => {
+            if (img.alt === j.title) {
+              img.src = url;
+              img.style.display = 'block';
+              img.nextElementSibling.style.display = 'none';
+            }
+          });
+        }
+      })
+      .catch(() => {});
+    return null;
+  }
+
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2-lat1)*Math.PI/180;
+    const dLon = (lon2-lon1)*Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
   function renderPriceTrend(hpiHistory) {
     if (!hpiHistory || hpiHistory.length < 2) return;
@@ -1420,6 +1570,8 @@
       if (_cc) showMap(_cc.lat, _cc.lng, j.city, j.data); else showMap(j.lat||43.7, j.lng||-79.4, j.city, j.data);
       // Load city insights
       loadCityInsights(j.city, metaLat, metaLng, j.country === 'ca');
+      // Load explore nearby
+      if (metaLat && metaLng) loadExploreSection(metaLat, metaLng, j.city);
       // Sync country toggle to city's country
       const toggle = document.getElementById('country-toggle');
       toggle.checked = (j.country === 'ca');
@@ -1534,6 +1686,7 @@
     document.getElementById('error-note').style.display = 'none';
     document.getElementById('estimated-note').style.display = 'none';
     document.getElementById('city-insights').style.display = 'none';
+    document.getElementById('explore-section').style.display = 'none';
     render(NATIONAL[country]);
     renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
     loadCityNews('', country);
