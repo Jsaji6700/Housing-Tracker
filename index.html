@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Housing Tracker</title>
+  <title>Housing Tracker — Live US & Canada Data</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'><rect width='42' height='42' rx='10' fill='%231a1f2e'/><path d='M21 9L33 19V33H27V25H15V33H9V19Z' fill='%23378ADD' opacity='0.9'/><rect x='13' y='26' width='3' height='7' rx='1' fill='white' opacity='0.6'/><rect x='17.5' y='23' width='3' height='10' rx='1' fill='white' opacity='0.8'/><rect x='22' y='20' width='3' height='13' rx='1' fill='white'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -272,8 +273,33 @@
 <div class="page">
 <div class="header">
     <div class="title">
-      <h1>HOUSING TRACKER</h1>
-      <p>Unbiased, raw housing data &mdash; powered by FRED &amp; Bank of Canada</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <!-- Logo mark -->
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="42" height="42" rx="10" fill="#1a1f2e"/>
+          <rect width="42" height="42" rx="10" fill="url(#logoGrad)" opacity="0.6"/>
+          <!-- House shape -->
+          <path d="M21 9L33 19V33H27V25H15V33H9V19L21 9Z" fill="url(#houseGrad)" opacity="0.95"/>
+          <!-- Bar chart inside house -->
+          <rect x="13" y="26" width="3" height="7" rx="1" fill="#fff" opacity="0.5"/>
+          <rect x="17.5" y="23" width="3" height="10" rx="1" fill="#fff" opacity="0.7"/>
+          <rect x="22" y="20" width="3" height="13" rx="1" fill="#fff" opacity="0.9"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#378ADD" stop-opacity="0.4"/>
+              <stop offset="1" stop-color="#1D9E75" stop-opacity="0.3"/>
+            </linearGradient>
+            <linearGradient id="houseGrad" x1="9" y1="9" x2="33" y2="33" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#378ADD"/>
+              <stop offset="1" stop-color="#1D9E75"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <h1 style="font-family:var(--font-mono);font-size:clamp(16px,3vw,22px);font-weight:700;letter-spacing:-0.5px;line-height:1">HOUSING TRACKER</h1>
+          <p style="font-size:11px;color:var(--muted);margin-top:3px">Unbiased, raw housing data &mdash; powered by FRED &amp; Bank of Canada</p>
+        </div>
+      </div>
     </div>
     <div class="country-toggle">
       <span style="font-size:16px">🇺🇸</span>
@@ -1051,16 +1077,24 @@
   calcMortgage(); // init on load
 
   // ── News Feed ────────────────────────────────────────────────────────────────
-  async function loadCityNews(cityName) {
+  async function loadCityNews(cityName, forceCountry) {
     const city = cityName ? cityName.split(',')[0].trim() : '';
-    document.getElementById('news-city-label').textContent = city ? '— ' + city : '';
+    const activeCountry = forceCountry || country;
+    document.getElementById('news-city-label').textContent = city ? '— ' + city : (activeCountry === 'ca' ? '— Canada' : '— United States');
     document.getElementById('news-feed').innerHTML = '<div class="news-loading">Loading news…</div>';
+
+    // City searched → all local news; no city → housing news for that country
+    const q = city
+      ? city
+      : activeCountry === 'ca'
+        ? 'Canada housing real estate mortgage CMHC budget affordability'
+        : 'United States housing real estate mortgage rates affordability prices';
+    const gl  = activeCountry === 'ca' ? 'CA' : 'US';
+    const hl  = 'en';
+    const ceid = activeCountry === 'ca' ? 'CA:en' : 'US:en';
+
     try {
-      // Two queries: general city news + housing specific
-      const q = city
-        ? encodeURIComponent(city)
-        : encodeURIComponent('Canada housing market real estate');
-      const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en-CA&gl=CA&ceid=CA:en`;
+      const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
       const r = await fetch(proxyUrl);
       const j = await r.json();
@@ -1080,10 +1114,10 @@
         </div>`;
       }).join('');
     } catch {
-      const city2 = cityName ? cityName.split(',')[0].trim() : 'Canada';
+      const fallback = city || (activeCountry === 'ca' ? 'Canada housing' : 'US housing market');
       document.getElementById('news-feed').innerHTML = `
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Could not load live feed.</div>
-        <a href="https://news.google.com/search?q=${encodeURIComponent(city2)}" target="_blank" style="font-size:12px;color:var(--blue)">Search ${city2} news &#8599;</a>`;
+        <a href="https://news.google.com/search?q=${encodeURIComponent(fallback)}" target="_blank" style="font-size:12px;color:var(--blue)">Search news &#8599;</a>`;
     }
   }
 
@@ -1095,7 +1129,7 @@
     return Math.floor(hrs / 24) + 'd ago';
   }
 
-  loadCityNews('');
+  loadCityNews('', country);
 
   // ── City Compare ─────────────────────────────────────────────────────────────
   async function runCompare() {
@@ -1305,6 +1339,7 @@
     if (!currentCity) {
       render(NATIONAL[country]);
       renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+      loadCityNews(null, country); // reload national news for selected country
     }
   });
 
@@ -1314,8 +1349,10 @@
     searchInput.value = '';
     clearBtn.style.display = 'none';
     document.getElementById('error-note').style.display = 'none';
+    document.getElementById('estimated-note').style.display = 'none';
     render(NATIONAL[country]);
     renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+    loadCityNews('', country);
   });
 
   // ── Raw toggle ──────────────────────────────────────────────────────────────
