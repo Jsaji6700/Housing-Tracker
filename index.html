@@ -853,13 +853,37 @@
     const tab   = currentListingTab;
     const cityEnc = encodeURIComponent(city + (prov ? ', ' + prov : ''));
 
+    // Province abbreviation → full name for Zolo URLs
+    const PROV_FULL = {
+      'AB':'alberta','BC':'british-columbia','MB':'manitoba','NB':'new-brunswick',
+      'NL':'newfoundland-and-labrador','NS':'nova-scotia','NT':'northwest-territories',
+      'NU':'nunavut','ON':'ontario','PE':'prince-edward-island','QC':'quebec',
+      'SK':'saskatchewan','YT':'yukon'
+    };
+    // US state abbreviation → full name for Zillow/realtor.com URLs
+    const STATE_FULL = {
+      'AL':'alabama','AK':'alaska','AZ':'arizona','AR':'arkansas','CA':'california',
+      'CO':'colorado','CT':'connecticut','DE':'delaware','FL':'florida','GA':'georgia',
+      'HI':'hawaii','ID':'idaho','IL':'illinois','IN':'indiana','IA':'iowa',
+      'KS':'kansas','KY':'kentucky','LA':'louisiana','ME':'maine','MD':'maryland',
+      'MA':'massachusetts','MI':'michigan','MN':'minnesota','MS':'mississippi',
+      'MO':'missouri','MT':'montana','NE':'nebraska','NV':'nevada','NH':'new-hampshire',
+      'NJ':'new-jersey','NM':'new-mexico','NY':'new-york','NC':'north-carolina',
+      'ND':'north-dakota','OH':'ohio','OK':'oklahoma','OR':'oregon','PA':'pennsylvania',
+      'RI':'rhode-island','SC':'south-carolina','SD':'south-dakota','TN':'tennessee',
+      'TX':'texas','UT':'utah','VT':'vermont','VA':'virginia','WA':'washington',
+      'WV':'west-virginia','WI':'wisconsin','WY':'wyoming','DC':'washington-dc'
+    };
+
     // Always show quick links first
     let linksHtml = '';
     if (isCA) {
-      const saleUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&LocationText=' + cityEnc;
-      const foreUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&Keywords=power%20of%20sale&LocationText=' + cityEnc;
-      const zoloSlug = city.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-      const zoloUrl  = 'https://www.zolo.ca/' + zoloSlug + '-real-estate';
+      const provFull = PROV_FULL[prov] || prov.toLowerCase();
+      const citySlug = city.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
+      const realtorCaSlug = citySlug + '-' + provFull;
+      const saleUrl = 'https://www.realtor.ca/real-estate/in-' + realtorCaSlug;
+      const foreUrl = 'https://www.realtor.ca/real-estate/in-' + realtorCaSlug + '?transactionTypeId=2&keyword=power%20of%20sale';
+      const zoloUrl = 'https://www.zolo.ca/' + citySlug + '-' + provFull + '-real-estate';
       if (tab === 'sale') {
         linksHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'
           + '<a class="listings-link" href="' + saleUrl + '" target="_blank">realtor.ca &#8599;</a>'
@@ -871,12 +895,15 @@
           + '</div>';
       }
     } else {
-      const slug = (city + '-' + prov).toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      const stateFull = STATE_FULL[prov] || prov.toLowerCase().replace(/\s+/g,'-');
+      const citySlugUS = city.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
+      const realtorSlug = citySlugUS + '_' + stateFull;
+      const zillowQ = encodeURIComponent(city + ', ' + prov);
       linksHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'
         + (tab === 'sale'
-          ? '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + slug + '" target="_blank">realtor.com &#8599;</a>'
-            + '<a class="listings-link" href="https://www.zillow.com/homes/' + encodeURIComponent(city + ' ' + prov) + '" target="_blank">Zillow &#8599;</a>'
-          : '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + slug + '/type-foreclosure" target="_blank">Foreclosures on realtor.com &#8599;</a>')
+          ? '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + realtorSlug + '" target="_blank">realtor.com &#8599;</a>'
+            + '<a class="listings-link" href="https://www.zillow.com/homes/' + zillowQ + '_rb/" target="_blank">Zillow &#8599;</a>'
+          : '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + realtorSlug + '/type-foreclosure" target="_blank">Foreclosures on realtor.com &#8599;</a>')
         + '</div>';
     }
 
