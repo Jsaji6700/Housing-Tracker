@@ -18,12 +18,11 @@ export default async function handler(req, res) {
       if (!metro) return res.status(404).json({ error: 'City not found', suggestions: suggestCities(cityQuery) });
 
       const isCA = metro.country === 'ca';
-      const [data, rates, listings] = await Promise.all([
+      const [data, rates] = await Promise.all([
         isCA ? fetchCityCA(metro) : fetchCityUS(metro, FRED_KEY),
         isCA ? fetchRatesCA() : fetchRatesUS(FRED_KEY),
-        fetchListings(metro),
       ]);
-      return res.status(200).json({ city: metro.display, country: metro.country, province: metro.prov || null, data, rates, listings, updated: new Date().toISOString() });
+      return res.status(200).json({ city: metro.display, country: metro.country, province: metro.prov || null, lat: metro.lat || null, lng: metro.lng || null, data, rates, updated: new Date().toISOString() });
     }
 
     const [us, ca, ratesUS, ratesCA] = await Promise.all([fetchUS(FRED_KEY), fetchCA(), fetchRatesUS(FRED_KEY), fetchRatesCA()]);
@@ -31,99 +30,6 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-}
-
-// ── LISTINGS via realtor.ca internal API ──────────────────────────────────────
-async function fetchListings(metro) {
-  try {
-    if (metro.country === 'us') return await fetchListingsUS(metro);
-    return await fetchListingsCA(metro);
-  } catch(e) {
-    return { forSale: [], foreclosures: [], total: 0, error: e.message };
-  }
-}
-
-async function fetchListingsCA(metro) {
-  // Realtor.ca internal API — reverse engineered, no key needed
-  const body = {
-    ZoomLevel: 11,
-    LatitudeMax: (metro.lat || 43.7) + 0.3,
-    LongitudeMax: (metro.lng || -79.4) + 0.4,
-    LatitudeMin: (metro.lat || 43.7) - 0.3,
-    LongitudeMin: (metro.lng || -79.4) - 0.4,
-    Sort: "6-D",
-    PropertyTypeGroupID: 1,
-    TransactionTypeId: 2,
-    RecordsPerPage: 12,
-    ApplicationId: 1,
-    CultureId: 1,
-    Version: 7.0,
-    CurrentPage: 1
-  };
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'Referer': 'https://www.realtor.ca/',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  };
-
-  const r = await fetch('https://api2.realtor.ca/Listing.svc/PropertySearch_Post', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body)
-  });
-
-  const j = await r.json();
-  const results = j?.Results || [];
-  const total = j?.Paging?.TotalRecords || 0;
-
-  const forSale = results.slice(0, 8).map(p => ({
-    address: p.Property?.Address?.AddressText || 'Address not available',
-    price: p.Property?.Price || 'Price not listed',
-    beds: p.Building?.BedRange || null,
-    baths: p.Building?.BathRange || null,
-    type: p.Property?.Type || 'Residential',
-    url: p.RelativeDetailsURL ? 'https://www.realtor.ca' + p.RelativeDetailsURL : null,
-    photo: p.Property?.Photo?.[0]?.HighResPath || null,
-    mls: p.MlsNumber || null,
-  }));
-
-  // Power of sale / foreclosure search
-  const bodyPOS = { ...body, Keywords: 'power of sale', RecordsPerPage: 6 };
-  let foreclosures = [];
-  try {
-    const r2 = await fetch('https://api2.realtor.ca/Listing.svc/PropertySearch_Post', {
-      method: 'POST', headers, body: JSON.stringify(bodyPOS)
-    });
-    const j2 = await r2.json();
-    foreclosures = (j2?.Results || []).slice(0, 6).map(p => ({
-      address: p.Property?.Address?.AddressText || 'Address not available',
-      price: p.Property?.Price || 'Price not listed',
-      beds: p.Building?.BedRange || null,
-      baths: p.Building?.BathRange || null,
-      type: 'Power of Sale',
-      url: p.RelativeDetailsURL ? 'https://www.realtor.ca' + p.RelativeDetailsURL : null,
-      mls: p.MlsNumber || null,
-    }));
-  } catch {}
-
-  return { forSale, foreclosures, total, source: 'realtor.ca' };
-}
-
-async function fetchListingsUS(metro) {
-  // Zillow-style search via public realtor.com API approximation
-  // Use a simple redirect to search page — no listings API available without key
-  // Return a search URL instead
-  const citySlug = metro.display.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-');
-  return {
-    forSale: [],
-    foreclosures: [],
-    total: null,
-    searchUrl: `https://www.realtor.com/realestateandhomes-search/${citySlug}`,
-    foreclosureUrl: `https://www.realtor.com/realestateandhomes-search/${citySlug}/type-foreclosure`,
-    source: 'realtor.com',
-    note: 'Click links to view live US listings on realtor.com'
-  };
 }
 
 // ── CANADIAN CITY DATABASE (98 cities) ────────────────────────────────────────
