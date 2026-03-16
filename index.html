@@ -73,6 +73,7 @@
     .pulse.error{background:var(--red);animation:none}
     .error-note{background:rgba(226,75,74,.1);border:0.5px solid rgba(226,75,74,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#f09595;margin-bottom:1.25rem;display:none}
     .ca-note{background:rgba(55,138,221,.08);border:0.5px solid rgba(55,138,221,.25);border-radius:var(--rs);padding:8px 14px;font-size:12px;color:#85B7EB;margin-bottom:12px;display:none}
+    .estimated-note{background:rgba(250,199,117,.07);border:0.5px solid rgba(250,199,117,.3);border-radius:var(--rs);padding:8px 14px;font-size:12px;color:#FAC775;margin-bottom:12px;display:none}
 
     /* SCORES */
     .scores-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
@@ -237,6 +238,7 @@
   </div>
   <div class="error-note" id="error-note"></div>
   <div class="ca-note" id="ca-note">Showing Canadian data. Scores use CMHC supply targets, Bank of Canada rates, and Statistics Canada income benchmarks.</div>
+  <div class="estimated-note" id="estimated-note">⚠ Estimated data — this city has no direct FRED or Stats Can feed. Scores are derived from provincial/state averages with local adjustments. Use as a general guide only.</div>
 
   <!-- SCORE CARDS -->
   <div class="scores-grid">
@@ -502,7 +504,165 @@
     {n:"St. John's, NL",c:"ca"},
     {n:"Corner Brook, NL",c:"ca"},
     {n:"Charlottetown, PE",c:"ca"},
+    {n:"Whitehorse, YT",c:"ca",lat:60.72,lng:-135.05},
+    {n:"Yellowknife, NT",c:"ca",lat:62.45,lng:-114.38},
+    {n:"Iqaluit, NU",c:"ca",lat:63.75,lng:-68.52},
+    {n:"Scarborough, ON",c:"ca",lat:43.77,lng:-79.26},
+    {n:"Etobicoke, ON",c:"ca",lat:43.69,lng:-79.55},
+    {n:"North York, ON",c:"ca",lat:43.76,lng:-79.41},
+    {n:"Thornhill, ON",c:"ca"},
+    {n:"Woodbridge, ON",c:"ca"},
+    {n:"Orangeville, ON",c:"ca"},
+    {n:"Collingwood, ON",c:"ca"},
+    {n:"Owen Sound, ON",c:"ca"},
+    {n:"Midland, ON",c:"ca"},
+    {n:"Cobourg, ON",c:"ca"},
+    {n:"Port Hope, ON",c:"ca"},
+    {n:"Langley, BC",c:"ca"},
+    {n:"Delta, BC",c:"ca"},
+    {n:"North Vancouver, BC",c:"ca"},
+    {n:"West Vancouver, BC",c:"ca"},
+    {n:"Maple Ridge, BC",c:"ca"},
+    {n:"Port Coquitlam, BC",c:"ca"},
+    {n:"White Rock, BC",c:"ca"},
+    {n:"Courtenay, BC",c:"ca"},
+    {n:"Campbell River, BC",c:"ca"},
+    {n:"Cranbrook, BC",c:"ca"},
+    {n:"Penticton, BC",c:"ca"},
+    {n:"Vernon, BC",c:"ca"},
+    {n:"Sherwood Park, AB",c:"ca"},
+    {n:"Cochrane, AB",c:"ca"},
+    {n:"Okotoks, AB",c:"ca"},
+    {n:"Lloydminster, AB",c:"ca"},
+    {n:"Camrose, AB",c:"ca"},
+    {n:"Levis, QC",c:"ca"},
+    {n:"Repentigny, QC",c:"ca"},
+    {n:"Brossard, QC",c:"ca"},
+    {n:"Drummondville, QC",c:"ca"},
+    {n:"Saint-Jerome, QC",c:"ca"},
+    {n:"Granby, QC",c:"ca"},
+    {n:"Dartmouth, NS",c:"ca"},
+    {n:"Truro, NS",c:"ca"},
+    {n:"Miramichi, NB",c:"ca"},
+    {n:"Bathurst, NB",c:"ca"},
+    // Territories
+    {n:"Whitehorse, YT",c:"ca",lat:60.72,lng:-135.05},
+    {n:"Yellowknife, NT",c:"ca",lat:62.45,lng:-114.38},
+    {n:"Iqaluit, NU",c:"ca",lat:63.75,lng:-68.52},
+    {n:"Dawson City, YT",c:"ca",lat:64.06,lng:-139.43},
+    {n:"Watson Lake, YT",c:"ca",lat:60.06,lng:-128.71},
+    {n:"Hay River, NT",c:"ca",lat:60.82,lng:-115.78},
+    {n:"Inuvik, NT",c:"ca",lat:68.36,lng:-133.72},
+    {n:"Fort Smith, NT",c:"ca",lat:60.00,lng:-111.89},
+    // Ontario small towns
+    {n:"Stratford, ON",c:"ca"},{n:"Woodstock, ON",c:"ca"},{n:"Orillia, ON",c:"ca"},
+    {n:"Lindsay, ON",c:"ca"},{n:"Pembroke, ON",c:"ca"},{n:"Trenton, ON",c:"ca"},
+    {n:"Cornwall, ON",c:"ca"},{n:"Brockville, ON",c:"ca"},{n:"Hawkesbury, ON",c:"ca"},
+    {n:"Smiths Falls, ON",c:"ca"},{n:"Renfrew, ON",c:"ca"},{n:"Arnprior, ON",c:"ca"},
+    {n:"Carleton Place, ON",c:"ca"},{n:"Perth, ON",c:"ca"},{n:"Kemptville, ON",c:"ca"},
+    {n:"Cobourg, ON",c:"ca"},{n:"Port Hope, ON",c:"ca"},{n:"Tillsonburg, ON",c:"ca"},
+    {n:"Simcoe, ON",c:"ca"},{n:"Leamington, ON",c:"ca"},{n:"Chatham, ON",c:"ca"},
+    {n:"St. Thomas, ON",c:"ca"},{n:"Strathroy, ON",c:"ca"},{n:"Ingersoll, ON",c:"ca"},
+    {n:"Goderich, ON",c:"ca"},{n:"Kincardine, ON",c:"ca"},{n:"Hanover, ON",c:"ca"},
+    {n:"Fergus, ON",c:"ca"},{n:"Listowel, ON",c:"ca"},{n:"Collingwood, ON",c:"ca"},
+    {n:"Owen Sound, ON",c:"ca"},{n:"Midland, ON",c:"ca"},{n:"Orangeville, ON",c:"ca"},
+    // BC small towns
+    {n:"Squamish, BC",c:"ca"},{n:"Whistler, BC",c:"ca"},{n:"Hope, BC",c:"ca"},
+    {n:"Penticton, BC",c:"ca"},{n:"Vernon, BC",c:"ca"},{n:"Nelson, BC",c:"ca"},
+    {n:"Cranbrook, BC",c:"ca"},{n:"Courtenay, BC",c:"ca"},{n:"Campbell River, BC",c:"ca"},
+    {n:"Prince Rupert, BC",c:"ca"},{n:"Terrace, BC",c:"ca"},{n:"Kitimat, BC",c:"ca"},
+    {n:"Fort St. John, BC",c:"ca"},{n:"Dawson Creek, BC",c:"ca"},{n:"Williams Lake, BC",c:"ca"},
+    {n:"Quesnel, BC",c:"ca"},{n:"Smithers, BC",c:"ca"},{n:"Trail, BC",c:"ca"},
+    {n:"Castlegar, BC",c:"ca"},{n:"Osoyoos, BC",c:"ca"},{n:"Oliver, BC",c:"ca"},
+    // Alberta small towns
+    {n:"Canmore, AB",c:"ca"},{n:"Banff, AB",c:"ca"},{n:"Jasper, AB",c:"ca"},
+    {n:"Leduc, AB",c:"ca"},{n:"Fort Saskatchewan, AB",c:"ca"},{n:"Sherwood Park, AB",c:"ca"},
+    {n:"Beaumont, AB",c:"ca"},{n:"Strathmore, AB",c:"ca"},{n:"High River, AB",c:"ca"},
+    {n:"Okotoks, AB",c:"ca"},{n:"Cochrane, AB",c:"ca"},{n:"Stony Plain, AB",c:"ca"},
+    {n:"Lacombe, AB",c:"ca"},{n:"Wetaskiwin, AB",c:"ca"},{n:"Drumheller, AB",c:"ca"},
+    {n:"Brooks, AB",c:"ca"},{n:"Taber, AB",c:"ca"},{n:"Peace River, AB",c:"ca"},
+    {n:"Slave Lake, AB",c:"ca"},{n:"Lloydminster, AB",c:"ca"},{n:"Camrose, AB",c:"ca"},
+    // Saskatchewan small towns
+    {n:"Swift Current, SK",c:"ca"},{n:"Yorkton, SK",c:"ca"},{n:"North Battleford, SK",c:"ca"},
+    {n:"Estevan, SK",c:"ca"},{n:"Weyburn, SK",c:"ca"},{n:"Humboldt, SK",c:"ca"},
+    {n:"Melfort, SK",c:"ca"},
+    // Manitoba small towns
+    {n:"Thompson, MB",c:"ca"},{n:"Portage la Prairie, MB",c:"ca"},{n:"Selkirk, MB",c:"ca"},
+    {n:"Winkler, MB",c:"ca"},{n:"Morden, MB",c:"ca"},{n:"Dauphin, MB",c:"ca"},
+    {n:"The Pas, MB",c:"ca"},{n:"Flin Flon, MB",c:"ca"},
+    // Quebec small towns
+    {n:"Rouyn-Noranda, QC",c:"ca"},{n:"Val-d'Or, QC",c:"ca"},{n:"Alma, QC",c:"ca"},
+    {n:"Rimouski, QC",c:"ca"},{n:"Riviere-du-Loup, QC",c:"ca"},{n:"Baie-Comeau, QC",c:"ca"},
+    {n:"Sept-Iles, QC",c:"ca"},{n:"Victoriaville, QC",c:"ca"},{n:"Joliette, QC",c:"ca"},
+    {n:"Saint-Georges, QC",c:"ca"},{n:"Magog, QC",c:"ca"},{n:"Sorel-Tracy, QC",c:"ca"},
+    {n:"Thetford Mines, QC",c:"ca"},{n:"Amos, QC",c:"ca"},
+    // Nova Scotia small towns
+    {n:"New Glasgow, NS",c:"ca"},{n:"Amherst, NS",c:"ca"},{n:"Bridgewater, NS",c:"ca"},
+    {n:"Yarmouth, NS",c:"ca"},{n:"Antigonish, NS",c:"ca"},{n:"Kentville, NS",c:"ca"},
+    {n:"Dartmouth, NS",c:"ca"},{n:"Truro, NS",c:"ca"},
+    // NB small towns
+    {n:"Campbellton, NB",c:"ca"},{n:"Edmundston, NB",c:"ca"},{n:"Woodstock, NB",c:"ca"},
+    // NL small towns
+    {n:"Gander, NL",c:"ca"},{n:"Grand Falls-Windsor, NL",c:"ca"},
+    {n:"Happy Valley-Goose Bay, NL",c:"ca"},{n:"Labrador City, NL",c:"ca"},
+    {n:"Stephenville, NL",c:"ca"},{n:"Clarenville, NL",c:"ca"},
+    // PEI
+    {n:"Summerside, PE",c:"ca"},{n:"Stratford, PE",c:"ca"},
   ];
+
+  // Dynamically add estimated US cities to autocomplete
+  const US_EST = [
+    "Huntsville, AL","Mobile, AL","Montgomery, AL","Tuscaloosa, AL","Hoover, AL","Dothan, AL","Auburn, AL","Decatur, AL","Madison, AL","Florence, AL","Phenix City, AL","Gadsden, AL","Vestavia Hills, AL","Prattville, AL","Alabaster, AL","Bessemer, AL","Opelika, AL","Northport, AL","Enterprise, AL","Daphne, AL","Athens, AL","Homewood, AL","Talladega, AL","Selma, AL",
+    "Fairbanks, AK","Juneau, AK","Sitka, AK","Ketchikan, AK","Wasilla, AK",
+    "Mesa, AZ","Chandler, AZ","Scottsdale, AZ","Gilbert, AZ","Glendale, AZ","Tempe, AZ","Peoria, AZ","Surprise, AZ","Yuma, AZ","Avondale, AZ","Goodyear, AZ","Flagstaff, AZ","Buckeye, AZ","Prescott, AZ","Casa Grande, AZ","Lake Havasu City, AZ","Maricopa, AZ","Queen Creek, AZ","Bullhead City, AZ","Prescott Valley, AZ","Apache Junction, AZ","Sierra Vista, AZ",
+    "Fort Smith, AR","Fayetteville, AR","Springdale, AR","Jonesboro, AR","North Little Rock, AR","Conway, AR","Rogers, AR","Pine Bluff, AR","Bentonville, AR","Hot Springs, AR","Bella Vista, AR","Texarkana, AR",
+    "Long Beach, CA","Oakland, CA","Fresno, CA","Anaheim, CA","Irvine, CA","Chula Vista, CA","Fremont, CA","Santa Ana, CA","Fontana, CA","Moreno Valley, CA","Glendale, CA","Huntington Beach, CA","Ontario, CA","Rancho Cucamonga, CA","Garden Grove, CA","Oceanside, CA","Elk Grove, CA","Corona, CA","Lancaster, CA","Palmdale, CA","Salinas, CA","Pomona, CA","Torrance, CA","Escondido, CA","Hayward, CA","Sunnyvale, CA","Pasadena, CA","Roseville, CA","Visalia, CA","Fullerton, CA","Thousand Oaks, CA","Concord, CA","Victorville, CA","Simi Valley, CA","Murrieta, CA","Temecula, CA","Beaumont, CA","Antioch, CA","Richmond, CA","Daly City, CA","Burbank, CA","El Monte, CA","West Covina, CA","Inglewood, CA","San Bernardino, CA","Vallejo, CA","Berkeley, CA","Downey, CA","Costa Mesa, CA","Norwalk, CA","Jurupa Valley, CA","Clovis, CA","Ventura, CA","West Sacramento, CA","Santa Clara, CA","Hesperia, CA","Chico, CA",
+    "Aurora, CO","Fort Collins, CO","Lakewood, CO","Thornton, CO","Arvada, CO","Westminster, CO","Pueblo, CO","Centennial, CO","Boulder, CO","Highlands Ranch, CO","Greeley, CO","Longmont, CO","Loveland, CO","Broomfield, CO","Castle Rock, CO","Parker, CO","Commerce City, CO",
+    "Waterbury, CT","Norwalk, CT","Danbury, CT","New Britain, CT","West Hartford, CT","Meriden, CT",
+    "Wilmington, DE","Dover, DE","Newark, DE",
+    "St. Petersburg, FL","Hialeah, FL","Port St. Lucie, FL","Tallahassee, FL","Fort Lauderdale, FL","Pembroke Pines, FL","Hollywood, FL","Gainesville, FL","Miramar, FL","Coral Springs, FL","Clearwater, FL","Pompano Beach, FL","West Palm Beach, FL","Lehigh Acres, FL","Davie, FL","Boca Raton, FL","Fort Myers, FL","Deltona, FL","Daytona Beach, FL","North Port, FL","Deerfield Beach, FL","Sunrise, FL","Plantation, FL","Boynton Beach, FL","Kissimmee, FL","Ocala, FL","Sarasota, FL","Palm Coast, FL","Melbourne, FL",
+    "Augusta, GA","Columbus, GA","Macon, GA","Savannah, GA","Athens, GA","Sandy Springs, GA","Roswell, GA","Johns Creek, GA","Albany, GA","Warner Robins, GA","Alpharetta, GA","Marietta, GA","Valdosta, GA","Smyrna, GA","Peachtree City, GA",
+    "Nampa, ID","Meridian, ID","Idaho Falls, ID","Pocatello, ID","Caldwell, ID","Coeur d'Alene, ID","Twin Falls, ID","Post Falls, ID","Lewiston, ID",
+    "Aurora, IL","Rockford, IL","Joliet, IL","Naperville, IL","Springfield, IL","Elgin, IL","Waukegan, IL","Champaign, IL","Bloomington, IL","Decatur, IL","Evanston, IL","Schaumburg, IL","Bolingbrook, IL","Peoria, IL",
+    "Fort Wayne, IN","Evansville, IN","South Bend, IN","Carmel, IN","Fishers, IN","Bloomington, IN","Hammond, IN","Gary, IN","Muncie, IN","Lafayette, IN","Terre Haute, IN","Noblesville, IN",
+    "Des Moines, IA","Cedar Rapids, IA","Davenport, IA","Sioux City, IA","Iowa City, IA","Waterloo, IA","Ames, IA","Dubuque, IA","Council Bluffs, IA","Ankeny, IA",
+    "Overland Park, KS","Kansas City, KS","Olathe, KS","Topeka, KS","Lawrence, KS","Shawnee, KS","Manhattan, KS","Lenexa, KS","Salina, KS",
+    "Bowling Green, KY","Owensboro, KY","Covington, KY","Hopkinsville, KY","Richmond, KY",
+    "Shreveport, LA","Metairie, LA","Lafayette, LA","Lake Charles, LA","Kenner, LA","Monroe, LA","Alexandria, LA",
+    "Portland, ME","Lewiston, ME","Bangor, ME","Auburn, ME",
+    "Columbia, MD","Germantown, MD","Silver Spring, MD","Waldorf, MD","Frederick, MD","Rockville, MD","Bethesda, MD","Gaithersburg, MD","Annapolis, MD","Hagerstown, MD",
+    "Springfield, MA","Lowell, MA","Cambridge, MA","New Bedford, MA","Brockton, MA","Quincy, MA","Lynn, MA","Fall River, MA","Newton, MA","Somerville, MA","Framingham, MA","Haverhill, MA","Waltham, MA","Malden, MA","Medford, MA","Taunton, MA","Chicopee, MA",
+    "Warren, MI","Sterling Heights, MI","Lansing, MI","Flint, MI","Dearborn, MI","Livonia, MI","Clinton Township, MI","Westland, MI","Troy, MI","Farmington Hills, MI","Kalamazoo, MI","Wyoming, MI","Southfield, MI","Rochester Hills, MI","Taylor, MI","Pontiac, MI","Saginaw, MI","Traverse City, MI","Midland, MI",
+    "St. Paul, MN","Rochester, MN","Duluth, MN","Bloomington, MN","Brooklyn Park, MN","Plymouth, MN","St. Cloud, MN","Eagan, MN","Woodbury, MN","Maple Grove, MN","Coon Rapids, MN","Eden Prairie, MN","Burnsville, MN","Mankato, MN",
+    "Jackson, MS","Gulfport, MS","Southaven, MS","Hattiesburg, MS","Biloxi, MS","Meridian, MS",
+    "Columbia, MO","Independence, MO","Lee's Summit, MO","O'Fallon, MO","St. Joseph, MO","St. Charles, MO","Blue Springs, MO","Joplin, MO",
+    "Billings, MT","Missoula, MT","Great Falls, MT","Bozeman, MT","Butte, MT","Helena, MT","Kalispell, MT",
+    "Lincoln, NE","Bellevue, NE","Grand Island, NE","Kearney, NE","Fremont, NE","Norfolk, NE",
+    "Reno, NV","Henderson, NV","North Las Vegas, NV","Sparks, NV","Carson City, NV",
+    "Manchester, NH","Nashua, NH","Concord, NH","Dover, NH","Rochester, NH",
+    "Newark, NJ","Jersey City, NJ","Paterson, NJ","Elizabeth, NJ","Lakewood, NJ","Edison, NJ","Toms River, NJ","Woodbridge, NJ","Trenton, NJ","Camden, NJ",
+    "Las Cruces, NM","Rio Rancho, NM","Santa Fe, NM","Roswell, NM",
+    "Yonkers, NY","New Rochelle, NY","Mount Vernon, NY","Schenectady, NY","Utica, NY","White Plains, NY","Binghamton, NY","Troy, NY","Niagara Falls, NY","Ithaca, NY",
+    "Durham, NC","Fayetteville, NC","Cary, NC","Wilmington, NC","High Point, NC","Concord, NC","Gastonia, NC","Chapel Hill, NC","Huntersville, NC","Burlington, NC","Rocky Mount, NC","Hickory, NC",
+    "Fargo, ND","Bismarck, ND","Grand Forks, ND","Minot, ND",
+    "Cleveland, OH","Cincinnati, OH","Parma, OH","Canton, OH","Lorain, OH","Hamilton, OH","Springfield, OH","Kettering, OH","Elyria, OH","Lakewood, OH","Newark, OH","Mentor, OH","Cuyahoga Falls, OH","Euclid, OH","Mansfield, OH","Middletown, OH",
+    "Norman, OK","Broken Arrow, OK","Lawton, OK","Edmond, OK","Moore, OK","Midwest City, OK","Enid, OK",
+    "Eugene, OR","Salem, OR","Gresham, OR","Hillsboro, OR","Beaverton, OR","Medford, OR","Bend, OR","Corvallis, OR","Springfield, OR","Albany, OR","Lake Oswego, OR",
+    "Erie, PA","Reading, PA","Bethlehem, PA","Lancaster, PA","Harrisburg, PA","York, PA","Wilkes-Barre, PA","Chester, PA","Altoona, PA",
+    "Providence, RI","Cranston, RI","Warwick, RI","Pawtucket, RI",
+    "North Charleston, SC","Mount Pleasant, SC","Rock Hill, SC","Greenville, SC","Summerville, SC","Hilton Head Island, SC","Spartanburg, SC","Florence, SC",
+    "Sioux Falls, SD","Rapid City, SD","Aberdeen, SD",
+    "Chattanooga, TN","Clarksville, TN","Murfreesboro, TN","Franklin, TN","Jackson, TN","Johnson City, TN","Bartlett, TN","Hendersonville, TN","Kingsport, TN","Smyrna, TN","Collierville, TN",
+    "Fort Worth, TX","Arlington, TX","Corpus Christi, TX","Plano, TX","Lubbock, TX","Laredo, TX","Irving, TX","Garland, TX","Amarillo, TX","Frisco, TX","McKinney, TX","Grand Prairie, TX","Brownsville, TX","Killeen, TX","Pasadena, TX","Midland, TX","Mesquite, TX","Denton, TX","Waco, TX","Carrollton, TX","Abilene, TX","Beaumont, TX","Odessa, TX","Round Rock, TX","Cedar Park, TX","Sugar Land, TX","Tyler, TX","Pearland, TX","League City, TX","Richardson, TX","New Braunfels, TX","Lewisville, TX","Flower Mound, TX","Allen, TX","Wichita Falls, TX","Mission, TX","Longview, TX","Conroe, TX","San Marcos, TX","Baytown, TX","College Station, TX",
+    "West Valley City, UT","West Jordan, UT","Sandy, UT","Orem, UT","St. George, UT","Layton, UT","South Jordan, UT","Lehi, UT","Taylorsville, UT","Logan, UT","Millcreek, UT",
+    "Burlington, VT","Rutland, VT","Montpelier, VT",
+    "Norfolk, VA","Chesapeake, VA","Newport News, VA","Alexandria, VA","Hampton, VA","Roanoke, VA","Portsmouth, VA","Suffolk, VA","Lynchburg, VA","Harrisonburg, VA","Charlottesville, VA","Fredericksburg, VA","Arlington, VA",
+    "Tacoma, WA","Vancouver, WA","Bellevue, WA","Kent, WA","Everett, WA","Renton, WA","Kirkland, WA","Bellingham, WA","Kennewick, WA","Yakima, WA","Federal Way, WA","Redmond, WA","Marysville, WA","Sammamish, WA","Shoreline, WA","Richland, WA","South Hill, WA",
+    "Charleston, WV","Huntington, WV","Morgantown, WV","Parkersburg, WV",
+    "Green Bay, WI","Kenosha, WI","Racine, WI","Appleton, WI","Waukesha, WI","Oshkosh, WI","Eau Claire, WI","Janesville, WI","La Crosse, WI","Sheboygan, WI","Wauwatosa, WI","Fond du Lac, WI","Wausau, WI",
+    "Cheyenne, WY","Casper, WY","Laramie, WY","Gillette, WY","Rock Springs, WY",
+  ];
+  US_EST.forEach(n => CITIES.push({n, c:"us"}));
 
   // City coordinates for map
   const CITY_COORDS = {
@@ -645,6 +805,9 @@
       lastUpdated = j.updated ? new Date(j.updated) : new Date();
       setPulse('live','Live data — '+j.city);
       render(j.data, j.city, j.country);
+      // Show estimated data disclaimer for small cities
+      const estNote = document.getElementById('estimated-note');
+      if (estNote) estNote.style.display = j.estimated ? 'block' : 'none';
       if (j.rates) renderRates(j.rates, j.country);
       const _mc2 = CITY_COORDS[j.city] || (Object.entries(CITY_COORDS).find(([k]) => k.toLowerCase().startsWith(j.city.toLowerCase().split(',')[0].trim())) || [])[1];
       const metaLat = (_mc2 && _mc2.lat) || j.lat;
