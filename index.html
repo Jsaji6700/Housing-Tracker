@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Housing Tracker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -180,6 +181,18 @@
     .listings-link:hover{background:rgba(55,138,221,.08)}
     .listings-count{font-size:11px;color:var(--muted);margin-bottom:8px}
     @media(max-width:600px){.listings-grid{grid-template-columns:1fr 1fr}}
+
+    /* MAP */
+    .leaflet-container{background:var(--surface2)}
+    /* MOST AFFORDABLE */
+    .afford-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+    .afford-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:.85rem;cursor:pointer;transition:border-color .2s}
+    .afford-card:hover{border-color:var(--border2)}
+    .afford-rank{font-size:10px;color:var(--muted);margin-bottom:4px;font-family:var(--font-mono)}
+    .afford-city{font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px}
+    .afford-prov{font-size:11px;color:var(--muted)}
+    .afford-score{font-family:var(--font-mono);font-size:18px;font-weight:700;margin-top:6px}
+    .afford-tabs{display:flex;gap:8px;margin-bottom:10px}
   </style>
 </head>
 <body>
@@ -282,11 +295,18 @@
     <div class="listings-tabs">
       <button class="ltab active" id="ltab-sale" onclick="showListingTab('sale')">For Sale</button>
       <button class="ltab" id="ltab-fore" onclick="showListingTab('fore')">Power of Sale / Foreclosure</button>
+      <button class="ltab" id="ltab-afford" onclick="showListingTab('afford')">Most Affordable</button>
     </div>
     <div class="listings-count" id="listings-count"></div>
     <div id="listings-content">
       <div class="listings-empty">Loading listings&hellip;</div>
     </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="section-title" id="map-title" style="display:none;margin-top:1.25rem">City Map</div>
+  <div id="map-wrap" style="display:none;margin-bottom:12px">
+    <div id="map" style="height:320px;border-radius:var(--r);overflow:hidden;border:0.5px solid var(--border)"></div>
   </div>
 
   <!-- BREAKDOWN LEGENDS -->
@@ -334,6 +354,16 @@
   <button class="raw-toggle" id="raw-toggle">Show raw data</button>
   <div class="raw-data" id="raw-data"><div id="raw-content">Loading&hellip;</div></div>
 
+
+  <!-- MOST AFFORDABLE ZONES -->
+  <div class="section-title" style="margin-top:1.5rem">Most Affordable Zones</div>
+  <div class="afford-tabs">
+    <button class="ltab active" id="afford-tab-all" onclick="renderAffordable('all')">All</button>
+    <button class="ltab" id="afford-tab-ca"  onclick="renderAffordable('ca')">Canada</button>
+    <button class="ltab" id="afford-tab-us"  onclick="renderAffordable('us')">United States</button>
+  </div>
+  <div class="afford-grid" id="afford-grid"></div>
+
   <div class="footer">
     <div id="updated-txt">Fetching data&hellip;</div>
     <div style="margin-top:4px">Data: <a href="https://fred.stlouisfed.org" target="_blank">FRED / St. Louis Fed</a> &bull; <a href="https://www.bankofcanada.ca/valet/docs" target="_blank">Bank of Canada Valet API</a></div>
@@ -373,18 +403,18 @@
     {n:"Columbus, OH",c:"us"},
     {n:"Indianapolis, IN",c:"us"},
     {n:"Pittsburgh, PA",c:"us"},
-    {n:"Toronto, ON",c:"ca"},
-    {n:"Ottawa, ON",c:"ca"},
+    {n:"Toronto, ON",c:"ca",lat:43.70,lng:-79.42},
+    {n:"Ottawa, ON",c:"ca",lat:45.42,lng:-75.69},
     {n:"Mississauga, ON",c:"ca"},
     {n:"Brampton, ON",c:"ca"},
-    {n:"Hamilton, ON",c:"ca"},
-    {n:"London, ON",c:"ca"},
+    {n:"Hamilton, ON",c:"ca",lat:43.25,lng:-79.87},
+    {n:"London, ON",c:"ca",lat:43.00,lng:-81.27},
     {n:"Markham, ON",c:"ca"},
     {n:"Vaughan, ON",c:"ca"},
-    {n:"Kitchener, ON",c:"ca"},
+    {n:"Kitchener, ON",c:"ca",lat:43.45,lng:-80.49},
     {n:"Windsor, ON",c:"ca"},
     {n:"Oshawa, ON",c:"ca"},
-    {n:"Barrie, ON",c:"ca"},
+    {n:"Barrie, ON",c:"ca",lat:44.39,lng:-79.69},
     {n:"Guelph, ON",c:"ca"},
     {n:"St. Catharines, ON",c:"ca"},
     {n:"Cambridge, ON",c:"ca"},
@@ -408,9 +438,9 @@
     {n:"Richmond Hill, ON",c:"ca"},
     {n:"Oakville, ON",c:"ca"},
     {n:"Burlington, ON",c:"ca"},
-    {n:"Kenora, ON",c:"ca"},
-    {n:"Fort Frances, ON",c:"ca"},
-    {n:"Timmins, ON",c:"ca"},
+    {n:"Kenora, ON",c:"ca",lat:49.77,lng:-94.49},
+    {n:"Fort Frances, ON",c:"ca",lat:48.61,lng:-93.40},
+    {n:"Timmins, ON",c:"ca",lat:48.47,lng:-81.33},
     {n:"Dryden, ON",c:"ca"},
     {n:"Sioux Lookout, ON",c:"ca"},
     {n:"Kapuskasing, ON",c:"ca"},
@@ -423,20 +453,20 @@
     {n:"Gravenhurst, ON",c:"ca"},
     {n:"Cochrane, ON",c:"ca"},
     {n:"Hearst, ON",c:"ca"},
-    {n:"Vancouver, BC",c:"ca"},
+    {n:"Vancouver, BC",c:"ca",lat:49.25,lng:-123.10},
     {n:"Surrey, BC",c:"ca"},
     {n:"Burnaby, BC",c:"ca"},
     {n:"Richmond, BC",c:"ca"},
-    {n:"Kelowna, BC",c:"ca"},
+    {n:"Kelowna, BC",c:"ca",lat:49.89,lng:-119.49},
     {n:"Abbotsford, BC",c:"ca"},
     {n:"Coquitlam, BC",c:"ca"},
-    {n:"Victoria, BC",c:"ca"},
+    {n:"Victoria, BC",c:"ca",lat:48.43,lng:-123.37},
     {n:"Nanaimo, BC",c:"ca"},
     {n:"Kamloops, BC",c:"ca"},
     {n:"Prince George, BC",c:"ca"},
     {n:"Chilliwack, BC",c:"ca"},
-    {n:"Calgary, AB",c:"ca"},
-    {n:"Edmonton, AB",c:"ca"},
+    {n:"Calgary, AB",c:"ca",lat:51.05,lng:-114.07},
+    {n:"Edmonton, AB",c:"ca",lat:53.55,lng:-113.47},
     {n:"Red Deer, AB",c:"ca"},
     {n:"Lethbridge, AB",c:"ca"},
     {n:"Fort McMurray, AB",c:"ca"},
@@ -445,22 +475,22 @@
     {n:"Airdrie, AB",c:"ca"},
     {n:"St. Albert, AB",c:"ca"},
     {n:"Spruce Grove, AB",c:"ca"},
-    {n:"Montreal, QC",c:"ca"},
-    {n:"Quebec City, QC",c:"ca"},
+    {n:"Montreal, QC",c:"ca",lat:45.51,lng:-73.55},
+    {n:"Quebec City, QC",c:"ca",lat:46.81,lng:-71.21},
     {n:"Laval, QC",c:"ca"},
     {n:"Gatineau, QC",c:"ca"},
     {n:"Longueuil, QC",c:"ca"},
     {n:"Sherbrooke, QC",c:"ca"},
     {n:"Saguenay, QC",c:"ca"},
     {n:"Trois-Rivieres, QC",c:"ca"},
-    {n:"Winnipeg, MB",c:"ca"},
+    {n:"Winnipeg, MB",c:"ca",lat:49.90,lng:-97.14},
     {n:"Brandon, MB",c:"ca"},
     {n:"Steinbach, MB",c:"ca"},
-    {n:"Saskatoon, SK",c:"ca"},
-    {n:"Regina, SK",c:"ca"},
+    {n:"Saskatoon, SK",c:"ca",lat:52.13,lng:-106.67},
+    {n:"Regina, SK",c:"ca",lat:50.45,lng:-104.62},
     {n:"Prince Albert, SK",c:"ca"},
     {n:"Moose Jaw, SK",c:"ca"},
-    {n:"Halifax, NS",c:"ca"},
+    {n:"Halifax, NS",c:"ca",lat:44.65,lng:-63.58},
     {n:"Cape Breton, NS",c:"ca"},
     {n:"Moncton, NB",c:"ca"},
     {n:"Saint John, NB",c:"ca"},
@@ -469,6 +499,23 @@
     {n:"Corner Brook, NL",c:"ca"},
     {n:"Charlottetown, PE",c:"ca"},
   ];
+
+  // City coordinates for map
+  const CITY_COORDS = {
+    "Kenora, ON":{lat:49.77,lng:-94.49},"Fort Frances, ON":{lat:48.61,lng:-93.40},
+    "Timmins, ON":{lat:48.47,lng:-81.33},"Dryden, ON":{lat:49.78,lng:-92.84},
+    "Sioux Lookout, ON":{lat:50.09,lng:-91.91},"Thunder Bay, ON":{lat:48.38,lng:-89.25},
+    "Toronto, ON":{lat:43.70,lng:-79.42},"Ottawa, ON":{lat:45.42,lng:-75.69},
+    "Vancouver, BC":{lat:49.25,lng:-123.10},"Calgary, AB":{lat:51.05,lng:-114.07},
+    "Edmonton, AB":{lat:53.55,lng:-113.47},"Montreal, QC":{lat:45.51,lng:-73.55},
+    "Winnipeg, MB":{lat:49.90,lng:-97.14},"Halifax, NS":{lat:44.65,lng:-63.58},
+    "New York, NY":{lat:40.71,lng:-74.01},"Los Angeles, CA":{lat:34.05,lng:-118.24},
+    "Chicago, IL":{lat:41.88,lng:-87.63},"Houston, TX":{lat:29.76,lng:-95.37},
+    "Phoenix, AZ":{lat:33.45,lng:-112.07},"San Francisco, CA":{lat:37.77,lng:-122.42},
+    "Seattle, WA":{lat:47.61,lng:-122.33},"Miami, FL":{lat:25.77,lng:-80.19},
+    "Dallas, TX":{lat:32.78,lng:-96.80},"Boston, MA":{lat:42.36,lng:-71.06},
+    "Austin, TX":{lat:30.27,lng:-97.74},"Denver, CO":{lat:39.74,lng:-104.98},
+  };
 
 
   // ── State ───────────────────────────────────────────────────────────────────
@@ -578,6 +625,9 @@
     try {
       const res = await fetch('/api/scores?city='+encodeURIComponent(cityName));
       const j = await res.json();
+      // Attach coords for map
+      const coordKey = Object.keys(CITY_COORDS).find(k => k.toLowerCase().includes(cityName.toLowerCase().split(',')[0].trim().toLowerCase()));
+      if (coordKey) { j.lat = CITY_COORDS[coordKey].lat; j.lng = CITY_COORDS[coordKey].lng; }
       if (!res.ok || j.error) {
         if (j.suggestions?.length) {
           showError('City "'+cityName+'" not found. Did you mean: '+j.suggestions.join(', ')+'?');
@@ -592,8 +642,7 @@
       setPulse('live','Live data — '+j.city);
       render(j.data, j.city, j.country);
       if (j.rates) renderRates(j.rates, j.country);
-      document.getElementById('listings-title').textContent = 'Properties in ' + j.city;
-      renderListings(j.listings || null);
+      renderListings(j.listings, { display: j.city, country: j.country, lat: j.lat, lng: j.lng });
       // Sync country toggle to city's country
       const toggle = document.getElementById('country-toggle');
       toggle.checked = (j.country === 'ca');
@@ -660,10 +709,14 @@
 
   function closeSugs() { sugBox.classList.remove('open'); sugIdx=-1; }
 
+  let selectedMetroCoords = null;
   function selectCity(name) {
     searchInput.value = name;
     clearBtn.style.display = 'block';
     closeSugs();
+    // Find coords from local city list
+    const found = CITIES.find(c => c.n.toLowerCase() === name.toLowerCase());
+    selectedMetroCoords = found ? found : null;
     loadCity(name);
   }
 
@@ -675,7 +728,7 @@
     document.getElementById('error-note').style.display = 'none';
     render(NATIONAL[country]);
     renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
-    renderListings(null);
+    renderListings(null, null);
     setPulse('live','Live data');
     document.getElementById('updated-txt').textContent = lastUpdated
       ? 'Last updated: '+lastUpdated.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'})
@@ -769,77 +822,288 @@
   }
 
 
-  // ── Listings ─────────────────────────────────────────────────────────────────
+  // ── Listings (browser-side fetch from realtor.ca) ───────────────────────────
   let currentListings = null;
-  let currentListingTab = 'sale';
+    let currentListingTab = 'sale';
 
   function showListingTab(tab) {
     currentListingTab = tab;
     document.getElementById('ltab-sale').classList.toggle('active', tab === 'sale');
     document.getElementById('ltab-fore').classList.toggle('active', tab === 'fore');
-    renderListings(currentListings);
+    renderListings(window._lastListingsData);
   }
 
   function renderListings(data) {
-    currentListings = data;
+    window._lastListingsData = data;
     const section = document.getElementById('listings-section');
     if (!data) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-
-    const isUS = !data.source || data.source === 'realtor.com';
-
-    // US — show search links
-    if (isUS && data.searchUrl) {
-      document.getElementById('listings-count').textContent = '';
-      document.getElementById('listings-content').innerHTML =
-        '<div style="padding:8px 0">' +
-        '<a class="listings-link" href="' + data.searchUrl + '" target="_blank">View homes for sale on realtor.com &#8599;</a>' +
-        '<a class="listings-link" href="' + data.foreclosureUrl + '" target="_blank">View foreclosures on realtor.com &#8599;</a>' +
-        '</div>' +
-        '<div style="font-size:11px;color:var(--muted);margin-top:6px">' + (data.note || '') + '</div>';
-      return;
-    }
-
-    const items = currentListingTab === 'sale' ? (data.forSale || []) : (data.foreclosures || []);
-    const total = data.total;
-
-    if (currentListingTab === 'sale' && total) {
-      document.getElementById('listings-count').textContent = total.toLocaleString() + ' active listings in area';
+    const isCA = data.country === 'ca';
+    const city = (data.city || '').split(',')[0].trim();
+    const prov = data.prov || '';
+    const tab = currentListingTab;
+    let html = '';
+    if (isCA) {
+      const cityEnc = encodeURIComponent(city + ', ' + prov);
+      const saleUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&LocationText=' + cityEnc;
+      const foreUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&Keywords=power%20of%20sale&LocationText=' + cityEnc;
+      const zoloSlug = city.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const zoloUrl = 'https://www.zolo.ca/' + zoloSlug + '-real-estate';
+      if (tab === 'sale') {
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
+          '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.ca &#8599;</a>' +
+          '<a class="listings-link" href="' + zoloUrl + '" target="_blank">View on Zolo.ca &#8599;</a>' +
+          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Links open pre-filtered to ' + city + ', ' + prov + ' on Canada's official MLS portal.</p>';
+      } else {
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
+          '<a class="listings-link" href="' + foreUrl + '" target="_blank">Search power of sale listings on realtor.ca &#8599;</a>' +
+          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Power of sale / foreclosure listings for ' + city + ', ' + prov + ' via realtor.ca.</p>';
+      }
     } else {
-      document.getElementById('listings-count').textContent = '';
+      const slug = (city + '-' + prov).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const saleUrl = 'https://www.realtor.com/realestateandhomes-search/' + slug;
+      const foreUrl = 'https://www.realtor.com/realestateandhomes-search/' + slug + '/type-foreclosure';
+      const zillowUrl = 'https://www.zillow.com/homes/' + encodeURIComponent(city + ' ' + prov);
+      if (tab === 'sale') {
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
+          '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.com &#8599;</a>' +
+          '<a class="listings-link" href="' + zillowUrl + '" target="_blank">View listings on Zillow &#8599;</a>' +
+          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Links open pre-filtered to ' + city + ', ' + prov + '.</p>';
+      } else {
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
+          '<a class="listings-link" href="' + foreUrl + '" target="_blank">View foreclosures on realtor.com &#8599;</a>' +
+          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Foreclosure listings for ' + city + ', ' + prov + ' via realtor.com.</p>';
+      }
     }
+    document.getElementById('listings-content').innerHTML = html;
+  }
 
-    if (!items.length) {
-      document.getElementById('listings-content').innerHTML =
-        '<div class="listings-empty">' +
-        (currentListingTab === 'fore' ? 'No power of sale listings found in this area.' : 'No listings found.') +
-        '</div>';
+  function showMap(lat, lng, cityName, scores) {
+    document.getElementById('map-wrap').style.display = 'block';
+    document.getElementById('map-title').style.display = 'block';
+    function initMap() {
+      if (!window.L) { setTimeout(initMap, 400); return; }
+      if (!window._leafMap) {
+        window._leafMap = L.map('map', {scrollWheelZoom: false}).setView([lat, lng], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 18}).addTo(window._leafMap);
+      } else {
+        window._leafMap.setView([lat, lng], 11);
+        window._leafMap.eachLayer(l => { if (l instanceof L.Marker) window._leafMap.removeLayer(l); });
+      }
+      const col = scores.health >= 60 ? '#1D9E75' : scores.health >= 50 ? '#EF9F27' : '#E24B4A';
+      const icon = L.divIcon({html: '<div style="background:' + col + ';color:#fff;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4)">' + cityName.split(',')[0] + ' ' + scores.health.toFixed(1) + '</div>', className: '', iconAnchor: [50, 16]});
+      L.marker([lat, lng], {icon}).addTo(window._leafMap).bindPopup('<b>' + cityName + '</b><br>Health Score: ' + scores.health.toFixed(1) + '<br>Affordability: ' + scores.afford.toFixed(1) + '<br>Supply: ' + scores.supply.toFixed(1)).openPopup();
+      setTimeout(() => window._leafMap.invalidateSize(), 200);
+    }
+    initMap();
+  }
+
+  function hideMap() {
+    document.getElementById('map-wrap').style.display = 'none';
+    document.getElementById('map-title').style.display = 'none';
+  }
+
+  function renderRates(ratesData, country) {
+    if (!ratesData) return;
+    const isCA = country === 'ca';
+    document.getElementById('rates-panel-title').textContent = isCA ? 'Interest Rates (BOC)' : 'Interest Rates (Fed)';
+    document.getElementById('infl-panel-title').textContent  = isCA ? 'Inflation (Stats Can)' : 'Inflation (CPI / PCE)';
+
+    const rates = ratesData.rates || {};
+    const infl  = ratesData.inflation || {};
+
+    const rateKeys = isCA
+      ? ['overnight','prime','mort5y','bond2y','bond5y','bond10y','bond30y','spread']
+      : ['fedFunds','prime','mort30','mort15','t2y','t5y','t10y','t30y','spread'];
+
+    let rHtml = '';
+    rateKeys.forEach(k => {
+      const r = rates[k];
+      if (!r || r.value === null || r.value === undefined) return;
+      const v = r.value;
+      const diff = (r.prev !== null && r.prev !== undefined) ? parseFloat((v - r.prev).toFixed(3)) : null;
+      let chgHtml = '';
+      if (diff !== null) {
+        const cls = diff > 0.001 ? 'up' : diff < -0.001 ? 'dn' : 'flat';
+        const arrow = diff > 0.001 ? '&#9650;' : diff < -0.001 ? '&#9660;' : '&#8212;';
+        chgHtml = '<span class="rate-chg ' + cls + '">' + arrow + ' ' + Math.abs(diff).toFixed(2) + '</span>';
+      }
+      if (k === 'spread') {
+        const cls2 = v < 0 ? 'inverted' : v < 0.25 ? 'flat' : 'normal';
+        const label = v < 0 ? 'Yield curve inverted' : v < 0.25 ? 'Yield curve flat' : 'Yield curve normal';
+        rHtml += '<div class="rate-row"><span class="rate-lbl">' + r.label + '</span><span class="rate-val">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</span>' + chgHtml + '</div><div style="padding:4px 0 6px"><span class="spread-pill ' + cls2 + '">' + label + '</span></div>';
+      } else {
+        rHtml += '<div class="rate-row"><span class="rate-lbl">' + r.label + '</span><span class="rate-val">' + v.toFixed(2) + '%</span>' + chgHtml + '</div>';
+      }
+    });
+    document.getElementById('rates-rows').innerHTML = rHtml || '<div style="color:var(--muted);font-size:12px">No rate data</div>';
+
+    const inflKeys = isCA
+      ? ['cpi','coreCpi']
+      : ['cpi','coreCpi','pce','corePce','inflExp','breakeven','tipsReal'];
+
+    const MAX_INFL = 8;
+    let iHtml = '';
+    inflKeys.forEach(k => {
+      const r = infl[k];
+      if (!r || r.value === null || r.value === undefined) return;
+      const v = r.value;
+      const pct = Math.min(Math.max(v / MAX_INFL * 100, 0), 100);
+      const targetPct = ((r.target || 2) / MAX_INFL * 100);
+      const excess = v - (r.target || 2);
+      const barColor = excess <= 0 ? '#1D9E75' : excess < 1 ? '#FAC775' : excess < 2 ? '#EF9F27' : '#E24B4A';
+      const note = r.note ? ' <span style="font-size:10px;opacity:.5">(' + r.note + ')</span>' : '';
+      iHtml += '<div class="infl-row"><div class="infl-lbl">' + r.label + note + '</div><div class="infl-track"><div class="infl-fill" style="width:' + pct + '%;background:' + barColor + '"></div><div class="infl-target" style="left:' + targetPct + '%"></div></div><div class="infl-pct" style="color:' + barColor + '">' + (v >= 0 ? '+' : '') + v.toFixed(1) + '%</div></div>';
+    });
+    iHtml += '<div style="font-size:10px;color:var(--muted);margin-top:4px">Vertical line = 2% target &mdash; bar scale 0&ndash;8%</div>';
+    document.getElementById('infl-rows').innerHTML = iHtml || '<div style="color:var(--muted);font-size:12px">No inflation data</div>';
+  }
+
+
+  // ── Listings (browser-side fetch from realtor.ca) ───────────────────────────
+  let currentListings = null;
+  let currentListingTab = 'sale';
+  let currentCityMeta = null;
+
+  function showListingTab(tab) {
+    currentListingTab = tab;
+    document.getElementById('ltab-sale').classList.toggle('active', tab === 'sale');
+    document.getElementById('ltab-fore').classList.toggle('active', tab === 'fore');
+    document.getElementById('ltab-afford').classList.toggle('active', tab === 'afford');
+    if (currentCityMeta) fetchAndRenderListings(currentCityMeta, tab);
+  }
+
+  async function fetchAndRenderListings(meta, tab) {
+    const content = document.getElementById('listings-content');
+    const countEl = document.getElementById('listings-count');
+    content.innerHTML = '<div class="listings-empty">Loading listings&hellip;</div>';
+    countEl.textContent = '';
+
+    if (meta.country === 'us') {
+      renderUSLinks(meta);
       return;
     }
 
-    const html = items.map(p => {
-      const imgHtml = p.photo
-        ? '<img class="listing-img" src="' + p.photo + '" alt="property" loading="lazy">'
-        : '<div class="listing-img">No photo</div>';
-      const tag = currentListingTab === 'fore'
-        ? '<span class="listing-tag pos">Power of Sale</span>'
-        : '<span class="listing-tag sale">For Sale</span>';
-      const meta = [p.beds ? p.beds + ' bd' : null, p.baths ? p.baths + ' ba' : null, p.type || null].filter(Boolean).join(' &bull; ');
-      const mls = p.mls ? '<div style="font-size:10px;color:var(--muted);margin-top:3px">MLS ' + p.mls + '</div>' : '';
-      return '<a class="listing-card" href="' + (p.url || '#') + '" target="_blank">' +
-        imgHtml +
-        '<div class="listing-body">' + tag +
-        '<div class="listing-price">' + (p.price || 'Price N/A') + '</div>' +
-        '<div class="listing-addr">' + (p.address || '') + '</div>' +
-        '<div class="listing-meta">' + meta + '</div>' + mls +
-        '</div></a>';
-    }).join('');
+    try {
+      const isForeclosure = tab === 'fore';
+      const isAffordable  = tab === 'afford';
 
-    document.getElementById('listings-content').innerHTML = '<div class="listings-grid">' + html + '</div>';
+      const body = {
+        ZoomLevel: 10,
+        LatitudeMax:  meta.lat + 0.4,
+        LongitudeMax: meta.lng + 0.5,
+        LatitudeMin:  meta.lat - 0.4,
+        LongitudeMin: meta.lng - 0.5,
+        Sort: isAffordable ? "1-A" : "6-D",
+        PropertyTypeGroupID: 1,
+        TransactionTypeId: 2,
+        RecordsPerPage: isAffordable ? 12 : 9,
+        ApplicationId: 1,
+        CultureId: 1,
+        Version: 7.0,
+        CurrentPage: 1,
+      };
+      if (isForeclosure) body.Keywords = 'power of sale';
+
+      const resp = await fetch('https://api2.realtor.ca/Listing.svc/PropertySearch_Post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Referer': 'https://www.realtor.ca/',
+          'User-Agent': 'Mozilla/5.0'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!resp.ok) throw new Error('realtor.ca returned ' + resp.status);
+      const j = await resp.json();
+      const results = j?.Results || [];
+      const total   = j?.Paging?.TotalRecords || 0;
+
+      if (!results.length) {
+        content.innerHTML = '<div class="listings-empty">No listings found in this area.' +
+          ' <a class="listings-link" href="https://www.realtor.ca/map#view=list&Sort=6-D&GeoIds=' +
+          encodeURIComponent(meta.display) + '" target="_blank">Search on realtor.ca &#8599;</a></div>';
+        return;
+      }
+
+      countEl.textContent = total.toLocaleString() + ' listings in area' + (isAffordable ? ' — sorted by lowest price' : '') + (isForeclosure ? ' — power of sale only' : '');
+
+      const cards = results.map(p => {
+        const price = p.Property?.Price || 'Price N/A';
+        const addr  = p.Property?.Address?.AddressText || 'Address not available';
+        const beds  = p.Building?.BedRange || '';
+        const baths = p.Building?.BathRange || '';
+        const type  = p.Property?.Type || '';
+        const url   = p.RelativeDetailsURL ? 'https://www.realtor.ca' + p.RelativeDetailsURL : 'https://www.realtor.ca';
+        const photo = p.Property?.Photo?.[0]?.HighResPath || '';
+        const mls   = p.MlsNumber || '';
+        const isPOS = (p.PublicRemarks||'').toLowerCase().includes('power of sale') || isForeclosure;
+
+        const imgHtml = photo
+          ? '<img class="listing-img" src="' + photo + '" alt="property" loading="lazy" onerror="this.parentNode.innerHTML='<div class=listing-img>No photo</div>'">'
+          : '<div class="listing-img">No photo</div>';
+        const tag = isPOS
+          ? '<span class="listing-tag pos">Power of Sale</span>'
+          : '<span class="listing-tag sale">For Sale</span>';
+        const meta2 = [beds?beds+' bd':null, baths?baths+' ba':null, type||null].filter(Boolean).join(' &bull; ');
+
+        return '<a class="listing-card" href="' + url + '" target="_blank" rel="noopener">' +
+          imgHtml +
+          '<div class="listing-body">' + tag +
+          '<div class="listing-price">' + price + '</div>' +
+          '<div class="listing-addr" title="' + addr + '">' + addr + '</div>' +
+          '<div class="listing-meta">' + meta2 + '</div>' +
+          (mls ? '<div style="font-size:10px;color:var(--muted);margin-top:3px">MLS ' + mls + '</div>' : '') +
+          '</div></a>';
+      }).join('');
+
+      content.innerHTML = '<div class="listings-grid">' + cards + '</div>' +
+        '<div style="margin-top:10px;text-align:center">' +
+        '<a class="listings-link" href="https://www.realtor.ca/map#view=list" target="_blank">View all on realtor.ca &#8599;</a>' +
+        '</div>';
+
+    } catch(err) {
+      content.innerHTML = '<div class="listings-empty">Could not load listings directly. ' +
+        '<a class="listings-link" href="https://www.realtor.ca" target="_blank">Search on realtor.ca &#8599;</a>' +
+        '<div style="font-size:10px;color:var(--muted);margin-top:4px">Error: ' + err.message + '</div>' +
+        '</div>';
+    }
   }
+
+  function renderUSLinks(meta) {
+    const slug = meta.display.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-');
+    document.getElementById('listings-count').textContent = '';
+    document.getElementById('listings-content').innerHTML =
+      '<div style="padding:8px 0;display:flex;flex-wrap:wrap;gap:8px">' +
+      '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + slug + '" target="_blank">Homes for sale &#8599;</a>' +
+      '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + slug + '/type-foreclosure" target="_blank">Foreclosures &#8599;</a>' +
+      '<a class="listings-link" href="https://www.realtor.com/realestateandhomes-search/' + slug + '?price-max=300000&sort=price-asc" target="_blank">Most affordable &#8599;</a>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:4px">US MLS data requires realtor.com — click above to view live listings</div>';
+  }
+
+  function renderListings(data, meta) {
+    currentCityMeta = meta || null;
+    const section = document.getElementById('listings-section');
+    if (!meta) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    document.getElementById('listings-title').textContent = 'Properties in ' + meta.display;
+    // show listings links
+    renderListings({ country: meta.c === 'ca' ? 'ca' : 'us', city: meta.n, prov: meta.n.split(', ')[1] || '' });
+    // show map if coords available
+    const _mc = CITY_COORDS[meta.n] || (Object.entries(CITY_COORDS).find(([k]) => k.toLowerCase().startsWith(meta.n.toLowerCase().split(',')[0].trim())) || [])[1];
+    if (_mc) showMap(_mc.lat, _mc.lng, meta.n, {health:50,afford:50,supply:50});
+  }
+
+      // Load Leaflet
+  const leafletScript = document.createElement('script');
+  leafletScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  document.head.appendChild(leafletScript);
 
   loadNational();
   setInterval(loadNational, 3600000);
+  renderAffordable('all');
 </script>
 </body>
 </html>
