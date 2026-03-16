@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Housing Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0f1117;--surface:#181c27;--surface2:#1e2330;
+      --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+      --text:#f0f2f7;--muted:#7b8299;
+      --green:#1D9E75;--yellow:#FAC775;--orange:#EF9F27;--red:#E24B4A;--blue:#378ADD;
+      --font-mono:'Space Mono',monospace;--font-sans:'DM Sans',sans-serif;
+      --r:12px;--rs:8px;
+    }
+    body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;padding:2rem 1rem}
+    .page{max-width:860px;margin:0 auto}
+
+    /* HEADER */
+    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+    .title h1{font-family:var(--font-mono);font-size:clamp(16px,3vw,24px);font-weight:700;letter-spacing:-0.5px}
+    .title p{font-size:12px;color:var(--muted);margin-top:4px}
+    .country-toggle{display:flex;align-items:center;gap:8px;background:var(--surface);border:0.5px solid var(--border2);border-radius:999px;padding:6px 14px;font-size:13px}
+    .lbl{font-weight:400;color:var(--muted);transition:color .2s,font-weight .2s}
+    .lbl.active{font-weight:600;color:var(--text)}
+    .switch{position:relative;width:44px;height:24px;cursor:pointer}
+    .switch input{opacity:0;width:0;height:0}
+    .sw-track{position:absolute;inset:0;background:var(--surface2);border:0.5px solid var(--border2);border-radius:12px;transition:.25s}
+    .sw-thumb{position:absolute;width:18px;height:18px;top:2px;left:3px;background:var(--red);border-radius:50%;transition:transform .25s,background .25s}
+    input:checked~.sw-thumb{transform:translateX(20px);background:var(--green)}
+
+    /* SEARCH */
+    .search-wrap{position:relative;margin-bottom:1.25rem}
+    .search-input{
+      width:100%;background:var(--surface);border:0.5px solid var(--border2);
+      border-radius:var(--r);padding:12px 16px 12px 42px;
+      font-family:var(--font-sans);font-size:14px;color:var(--text);
+      outline:none;transition:border-color .2s;
+    }
+    .search-input::placeholder{color:var(--muted)}
+    .search-input:focus{border-color:rgba(255,255,255,0.3)}
+    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:16px}
+    .search-clear{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;display:none;padding:2px}
+    .search-clear:hover{color:var(--text)}
+    .suggestions{
+      position:absolute;top:calc(100% + 4px);left:0;right:0;
+      background:var(--surface);border:0.5px solid var(--border2);
+      border-radius:var(--rs);overflow:hidden;z-index:100;display:none;
+      box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    }
+    .suggestions.open{display:block}
+    .sug-item{padding:10px 16px;font-size:13px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s}
+    .sug-item:hover,.sug-item.active{background:var(--surface2);color:var(--text)}
+    .sug-flag{font-size:14px}
+    .sug-country{font-size:11px;margin-left:auto;opacity:0.5}
+
+    /* CITY BADGE */
+    .city-badge{display:none;align-items:center;gap:8px;margin-bottom:1rem;font-size:13px;color:var(--muted)}
+    .city-badge.visible{display:flex}
+    .city-name{font-size:15px;font-weight:600;color:var(--text)}
+    .city-back{background:none;border:0.5px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s;font-family:var(--font-sans)}
+    .city-back:hover{border-color:var(--border2);color:var(--text)}
+
+    /* STATUS */
+    .status-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:1.25rem}
+    .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .pulse.loading{background:var(--yellow)}
+    .pulse.error{background:var(--red);animation:none}
+    .error-note{background:rgba(226,75,74,.1);border:0.5px solid rgba(226,75,74,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#f09595;margin-bottom:1.25rem;display:none}
+    .ca-note{background:rgba(55,138,221,.08);border:0.5px solid rgba(55,138,221,.25);border-radius:var(--rs);padding:8px 14px;font-size:12px;color:#85B7EB;margin-bottom:12px;display:none}
+
+    /* SCORES */
+    .scores-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .score-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1.25rem;transition:border-color .2s}
+    .score-card:hover{border-color:var(--border2)}
+    .slabel{font-size:10px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+    .svalue{font-family:var(--font-mono);font-size:clamp(26px,4vw,38px);font-weight:700;color:var(--text);line-height:1}
+    .svalue.dim{opacity:.3}
+    .sstatus{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:13px;font-weight:500}
+    .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .shint{font-size:11px;color:var(--muted);margin-top:5px;font-style:italic}
+
+    /* HEALTH */
+    .health-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-bottom:12px;display:flex;align-items:center;gap:2rem}
+    .health-left{flex:0 0 auto;min-width:130px}
+    .hlabel{font-size:10px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    .hvalue{font-family:var(--font-mono);font-size:clamp(40px,6vw,56px);font-weight:700;color:var(--text);line-height:1}
+    .hstatus{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:13px;font-weight:500}
+    .health-right{flex:1}
+    .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .bar-lbl{font-size:12px;color:var(--muted);width:155px;flex-shrink:0}
+    .bar-track{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:3px;width:0;transition:width .8s cubic-bezier(.4,0,.2,1)}
+    .bar-pct{font-size:11px;color:var(--muted);width:28px;text-align:right;flex-shrink:0;font-family:var(--font-mono)}
+
+    /* BREAKDOWN */
+    .breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .bd-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1rem}
+    .bd-card h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--border)}
+    .bd-desc{font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6}
+    .bd-row{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:12px;color:var(--muted)}
+    .bd-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .bd-range{margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+    .crash-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:12px}
+    .crash-card h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--border)}
+    .crash-levels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+    .crash-level{display:flex;flex-direction:column;gap:4px}
+    .cl-name{font-size:12px;color:var(--muted)}
+    .cl-range{font-family:var(--font-mono);font-size:10px;color:var(--muted);opacity:.7}
+
+    /* RAW / FOOTER */
+    .raw-toggle{font-size:12px;color:var(--muted);background:none;border:0.5px solid var(--border);border-radius:var(--rs);padding:6px 12px;cursor:pointer;margin-bottom:8px;transition:border-color .2s,color .2s;font-family:var(--font-sans)}
+    .raw-toggle:hover{border-color:var(--border2);color:var(--text)}
+    .raw-data{display:none;background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:12px;font-size:12px;font-family:var(--font-mono);color:var(--muted);line-height:2}
+    .raw-data.open{display:block}
+    .raw-kv{display:flex;justify-content:space-between;border-bottom:0.5px solid var(--border)}
+    .raw-kv:last-child{border-bottom:none}
+    .raw-kv span:last-child{color:var(--text)}
+    .footer{font-size:11px;color:var(--muted);text-align:center;margin-top:1.5rem;line-height:1.8}
+    .footer a{color:var(--muted);text-decoration:underline}
+
+    /* RESPONSIVE */
+    @media(max-width:600px){
+      .scores-grid,.breakdown-grid{grid-template-columns:1fr}
+      .crash-levels{grid-template-columns:repeat(2,1fr)}
+      .health-card{flex-direction:column;gap:1rem}
+      .health-right{width:100%}
+      .bar-lbl{width:120px}
+    }
+
+    /* RATES & INFLATION */
+    .section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin:1.25rem 0 .75rem}
+    .rates-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .rates-panel{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);padding:1rem}
+    .rates-panel h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--border)}
+    .rate-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);gap:8px}
+    .rate-row:last-child{border-bottom:none}
+    .rate-lbl{font-size:12px;color:var(--muted);flex:1}
+    .rate-val{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--text);white-space:nowrap}
+    .rate-chg{font-size:11px;font-family:var(--font-mono);margin-left:6px;white-space:nowrap}
+    .rate-chg.up{color:#E24B4A}
+    .rate-chg.dn{color:#1D9E75}
+    .rate-chg.flat{color:var(--muted)}
+    .infl-bar-wrap{margin-top:6px}
+    .infl-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .infl-lbl{font-size:12px;color:var(--muted);width:175px;flex-shrink:0}
+    .infl-track{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative}
+    .infl-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+    .infl-target{position:absolute;top:-3px;bottom:-3px;width:1.5px;background:rgba(255,255,255,.3)}
+    .infl-pct{font-size:11px;font-family:var(--font-mono);width:40px;text-align:right;flex-shrink:0}
+    .spread-pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:11px;font-family:var(--font-mono);font-weight:600;margin-top:6px}
+    .spread-pill.inverted{background:rgba(226,75,74,.12);color:#f09595;border:0.5px solid rgba(226,75,74,.3)}
+    .spread-pill.normal{background:rgba(29,158,117,.12);color:#5DCAA5;border:0.5px solid rgba(29,158,117,.3)}
+    .spread-pill.flat{background:rgba(250,199,117,.1);color:#FAC775;border:0.5px solid rgba(250,199,117,.25)}
+    @media(max-width:600px){.rates-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="title">
+      <h1>HOUSING TRACKER</h1>
+      <p>Unbiased, raw housing data &mdash; powered by FRED &amp; Bank of Canada</p>
+    </div>
+    <div class="country-toggle">
+      <span style="font-size:16px">🇺🇸</span>
+      <span class="lbl active" id="lbl-us">US</span>
+      <label class="switch">
+        <input type="checkbox" id="country-toggle">
+        <span class="sw-track"></span>
+        <span class="sw-thumb"></span>
+      </label>
+      <span class="lbl" id="lbl-ca">CA</span>
+      <span style="font-size:16px">🇨🇦</span>
+    </div>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <div class="search-wrap" id="search-wrap">
+    <span class="search-icon">&#9906;</span>
+    <input class="search-input" id="search-input" type="text" placeholder="Search city &mdash; e.g. Toronto, San Francisco, Austin&hellip;" autocomplete="off">
+    <button class="search-clear" id="search-clear" title="Clear">&times;</button>
+    <div class="suggestions" id="suggestions"></div>
+  </div>
+
+  <!-- CITY BADGE (shown when viewing a city) -->
+  <div class="city-badge" id="city-badge">
+    <span id="city-flag" style="font-size:16px">🇺🇸</span>
+    <span class="city-name" id="city-name"></span>
+    <button class="city-back" id="city-back">&#8592; National</button>
+  </div>
+
+  <div class="status-bar">
+    <span class="pulse loading" id="pulse"></span>
+    <span id="status-txt">Fetching live data&hellip;</span>
+  </div>
+  <div class="error-note" id="error-note"></div>
+  <div class="ca-note" id="ca-note">Showing Canadian data. Scores use CMHC supply targets, Bank of Canada rates, and Statistics Canada income benchmarks.</div>
+
+  <!-- SCORE CARDS -->
+  <div class="scores-grid">
+    <div class="score-card">
+      <div class="slabel">Supply</div>
+      <div class="svalue dim" id="supply-val">&mdash;</div>
+      <div class="sstatus"><span class="dot" id="supply-dot" style="background:var(--muted)"></span><span id="supply-status">Loading&hellip;</span></div>
+      <div class="shint">higher = better</div>
+    </div>
+    <div class="score-card">
+      <div class="slabel">Affordability Score (1&ndash;100)</div>
+      <div class="svalue dim" id="afford-val">&mdash;</div>
+      <div class="sstatus"><span class="dot" id="afford-dot" style="background:var(--muted)"></span><span id="afford-status">Loading&hellip;</span></div>
+      <div class="shint">higher = better</div>
+    </div>
+    <div class="score-card">
+      <div class="slabel">Crash Likelihood (1&ndash;100)</div>
+      <div class="svalue dim" id="crash-val">&mdash;</div>
+      <div class="sstatus"><span class="dot" id="crash-dot" style="background:var(--muted)"></span><span id="crash-status">Loading&hellip;</span></div>
+      <div class="shint">higher = closer</div>
+    </div>
+  </div>
+
+  <!-- HEALTH SCORE -->
+  <div class="health-card">
+    <div class="health-left">
+      <div class="hlabel">Housing Health Score</div>
+      <div class="hvalue" id="health-val">&mdash;</div>
+      <div class="hstatus"><span class="dot" id="health-dot" style="background:var(--muted)"></span><span id="health-status">Loading&hellip;</span></div>
+    </div>
+    <div class="health-right">
+      <div class="bar-row"><div class="bar-lbl">Affordability (45%)</div><div class="bar-track"><div class="bar-fill" id="bar-afford" style="background:var(--blue)"></div></div><div class="bar-pct" id="bpct-afford">&mdash;</div></div>
+      <div class="bar-row"><div class="bar-lbl">Supply (35%)</div><div class="bar-track"><div class="bar-fill" id="bar-supply" style="background:var(--green)"></div></div><div class="bar-pct" id="bpct-supply">&mdash;</div></div>
+      <div class="bar-row"><div class="bar-lbl">Inv. Crash (20%)</div><div class="bar-track"><div class="bar-fill" id="bar-crash" style="background:var(--orange)"></div></div><div class="bar-pct" id="bpct-crash">&mdash;</div></div>
+    </div>
+  </div>
+
+
+  <!-- RATES & INFLATION -->
+  <div class="section-title">Interest Rates &amp; Inflation</div>
+  <div class="rates-grid">
+    <div class="rates-panel" id="rates-panel">
+      <h3 id="rates-panel-title">Interest Rates</h3>
+      <div id="rates-rows"><div style="color:var(--muted);font-size:12px">Loading&hellip;</div></div>
+    </div>
+    <div class="rates-panel">
+      <h3 id="infl-panel-title">Inflation</h3>
+      <div class="infl-bar-wrap" id="infl-rows"><div style="color:var(--muted);font-size:12px">Loading&hellip;</div></div>
+    </div>
+  </div>
+
+  <!-- BREAKDOWN LEGENDS -->
+  <div class="breakdown-grid">
+    <div class="bd-card">
+      <h3>Supply score</h3>
+      <p class="bd-desc">Current supply vs national target, scaled 0&ndash;100. Formula favors affordable housing.</p>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--green)"></span>Balanced<span class="bd-range">90&ndash;100</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--yellow)"></span>Slight undersupply<span class="bd-range">70&ndash;89.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--orange)"></span>Tight market<span class="bd-range">45&ndash;69.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--red)"></span>Critical shortage<span class="bd-range">&lt;45</span></div>
+    </div>
+    <div class="bd-card">
+      <h3>Affordability score</h3>
+      <p class="bd-desc">First-time buyer (40pts) + National index (20pts) + Mortgage rate (15pts) + 10Y Treasury (7.5pts) + Median income (17.5pts)</p>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--green)"></span>Affordable<span class="bd-range">80&ndash;100</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--yellow)"></span>Pressured<span class="bd-range">60&ndash;79.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--orange)"></span>Strained<span class="bd-range">40&ndash;59.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--red)"></span>Meltdown<span class="bd-range">&lt;40</span></div>
+    </div>
+    <div class="bd-card">
+      <h3>Housing health score</h3>
+      <p class="bd-desc">Composite: 45% affordability + 35% supply + 20% inverted crash score</p>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--green)"></span>Affordable housing<span class="bd-range">85&ndash;100</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:#5DCAA5"></span>Buyer's market<span class="bd-range">72.5&ndash;84.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--yellow)"></span>Neutral market<span class="bd-range">60&ndash;72.4</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--orange)"></span>Affordability crisis<span class="bd-range">50&ndash;59.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:#D85A30"></span>Nowhere close<span class="bd-range">40&ndash;49.9</span></div>
+      <div class="bd-row"><span class="bd-dot" style="background:var(--red)"></span>Crisis mode<span class="bd-range">&lt;40</span></div>
+    </div>
+  </div>
+
+  <div class="crash-card">
+    <h3>Crash score breakdown</h3>
+    <p class="bd-desc" style="margin-bottom:12px">Macroeconomic pressure total from leading indicators: delinquencies, vacancies, unemployment, mortgage rate, yield curve, CPI.</p>
+    <div class="crash-levels">
+      <div class="crash-level"><span class="bd-dot" style="background:var(--red)"></span><span class="cl-name">Meltdown</span><span class="cl-range">100&ndash;135</span></div>
+      <div class="crash-level"><span class="bd-dot" style="background:#D85A30"></span><span class="cl-name">Crash in sight</span><span class="cl-range">80&ndash;99.9</span></div>
+      <div class="crash-level"><span class="bd-dot" style="background:var(--orange)"></span><span class="cl-name">Correction in sight</span><span class="cl-range">70&ndash;79.9</span></div>
+      <div class="crash-level"><span class="bd-dot" style="background:var(--yellow)"></span><span class="cl-name">Buyer's market</span><span class="cl-range">45&ndash;69.9</span></div>
+      <div class="crash-level"><span class="bd-dot" style="background:var(--green)"></span><span class="cl-name">Strong seller's</span><span class="cl-range">&lt;45</span></div>
+    </div>
+  </div>
+
+  <button class="raw-toggle" id="raw-toggle">Show raw data</button>
+  <div class="raw-data" id="raw-data"><div id="raw-content">Loading&hellip;</div></div>
+
+  <div class="footer">
+    <div id="updated-txt">Fetching data&hellip;</div>
+    <div style="margin-top:4px">Data: <a href="https://fred.stlouisfed.org" target="_blank">FRED / St. Louis Fed</a> &bull; <a href="https://www.bankofcanada.ca/valet/docs" target="_blank">Bank of Canada Valet API</a></div>
+    <div style="margin-top:4px">Scores refresh every hour &bull; 29 US metros &bull; 8 Canadian cities supported</div>
+  </div>
+</div>
+
+<script>
+  // ── City list for autocomplete ──────────────────────────────────────────────
+  const CITIES = [
+    {n:"New York, NY",      c:"us"}, {n:"Los Angeles, CA",   c:"us"}, {n:"Chicago, IL",       c:"us"},
+    {n:"Dallas, TX",        c:"us"}, {n:"Houston, TX",       c:"us"}, {n:"Phoenix, AZ",       c:"us"},
+    {n:"Philadelphia, PA",  c:"us"}, {n:"San Antonio, TX",   c:"us"}, {n:"San Diego, CA",     c:"us"},
+    {n:"San Francisco, CA", c:"us"}, {n:"Seattle, WA",       c:"us"}, {n:"Denver, CO",        c:"us"},
+    {n:"Boston, MA",        c:"us"}, {n:"Austin, TX",        c:"us"}, {n:"Miami, FL",         c:"us"},
+    {n:"Atlanta, GA",       c:"us"}, {n:"Minneapolis, MN",   c:"us"}, {n:"Portland, OR",      c:"us"},
+    {n:"Las Vegas, NV",     c:"us"}, {n:"Nashville, TN",     c:"us"}, {n:"Charlotte, NC",     c:"us"},
+    {n:"Raleigh, NC",       c:"us"}, {n:"Orlando, FL",       c:"us"}, {n:"Tampa, FL",         c:"us"},
+    {n:"Sacramento, CA",    c:"us"}, {n:"Kansas City, MO",   c:"us"}, {n:"Columbus, OH",      c:"us"},
+    {n:"Indianapolis, IN",  c:"us"}, {n:"Pittsburgh, PA",    c:"us"},
+    {n:"Toronto, ON",       c:"ca"}, {n:"Vancouver, BC",     c:"ca"}, {n:"Montreal, QC",      c:"ca"},
+    {n:"Calgary, AB",       c:"ca"}, {n:"Ottawa, ON",        c:"ca"}, {n:"Edmonton, AB",      c:"ca"},
+    {n:"Winnipeg, MB",      c:"ca"}, {n:"Quebec City, QC",   c:"ca"},
+  ];
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let NATIONAL = {us:null, ca:null};
+  let country = 'us';
+  let currentCity = null;
+  let lastUpdated = null;
+  let sugIdx = -1;
+
+  // ── Score helpers ───────────────────────────────────────────────────────────
+  const supplyColor  = v => v>=90?'#1D9E75':v>=70?'#FAC775':v>=45?'#EF9F27':'#E24B4A';
+  const supplyLabel  = v => v>=90?'Balanced':v>=70?'Slight Undersupply':v>=45?'Tight Market':'Critical Shortage';
+  const affordColor  = v => v>=80?'#1D9E75':v>=60?'#FAC775':v>=40?'#EF9F27':'#E24B4A';
+  const affordLabel  = v => v>=80?'Affordable':v>=60?'Pressured':v>=40?'Very Strained':'Meltdown';
+  const crashColor   = v => v>=100?'#E24B4A':v>=80?'#D85A30':v>=70?'#EF9F27':v>=45?'#FAC775':'#1D9E75';
+  const crashLabel   = v => v>=100?'Meltdown':v>=80?'Crash in Sight':v>=70?'Correction in Sight':v>=45?"Buyer's Market":'Nowhere Close';
+  const healthColor  = v => v>=85?'#1D9E75':v>=72.5?'#5DCAA5':v>=60?'#FAC775':v>=50?'#EF9F27':v>=40?'#D85A30':'#E24B4A';
+  const healthLabel  = v => v>=85?'Affordable Housing':v>=72.5?"Buyer's Market":v>=60?'Neutral Market':v>=50?'Affordability Crisis':v>=40?'Nowhere Close to Affordable':'Crisis Mode';
+
+  function render(d, cityName, cityCountry) {
+    if (!d) return;
+    const isCA = (cityCountry || country) === 'ca';
+
+    ['supply','afford','crash'].forEach(k => {
+      const el = document.getElementById(k+'-val');
+      el.textContent = d[k].toFixed(2);
+      el.classList.remove('dim');
+    });
+    document.getElementById('health-val').textContent = d.health.toFixed(1);
+
+    const sc = {supply:[supplyColor,supplyLabel],afford:[affordColor,affordLabel],crash:[crashColor,crashLabel],health:[healthColor,healthLabel]};
+    Object.entries(sc).forEach(([k,[cf,lf]]) => {
+      const v = d[k];
+      const dot = document.getElementById(k+'-dot');
+      const lbl = document.getElementById(k+'-status');
+      dot.style.background = cf(v);
+      lbl.textContent = lf(v);
+      lbl.style.color = cf(v);
+    });
+
+    document.getElementById('bar-afford').style.width = d.afford+'%';
+    document.getElementById('bar-supply').style.width = d.supply+'%';
+    document.getElementById('bar-crash').style.width  = (100-d.crash)+'%';
+    document.getElementById('bpct-afford').textContent = Math.round(d.afford);
+    document.getElementById('bpct-supply').textContent = Math.round(d.supply);
+    document.getElementById('bpct-crash').textContent  = Math.round(100-d.crash);
+
+    document.getElementById('ca-note').style.display = isCA ? 'block' : 'none';
+    document.getElementById('lbl-us').classList.toggle('active', !isCA);
+    document.getElementById('lbl-ca').classList.toggle('active', isCA);
+
+    // City badge
+    const badge = document.getElementById('city-badge');
+    if (cityName) {
+      badge.classList.add('visible');
+      document.getElementById('city-name').textContent = cityName;
+      document.getElementById('city-flag').textContent = isCA ? '🇨🇦' : '🇺🇸';
+    } else {
+      badge.classList.remove('visible');
+    }
+
+    // Raw data
+    const raw = d.raw || {};
+    document.getElementById('raw-content').innerHTML = Object.entries(raw)
+      .filter(([,v]) => v !== null && v !== undefined)
+      .map(([k,v]) => `<div class="raw-kv"><span>${k}</span><span>${typeof v==='number'?v.toFixed(2):v}</span></div>`)
+      .join('') || '<div style="color:var(--muted)">No raw data</div>';
+
+    // Rates are rendered separately via renderRates()
+    if (lastUpdated) {
+      const fmt = lastUpdated.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+      document.getElementById('updated-txt').textContent = (cityName ? cityName+' — ' : '') + 'Last updated: '+fmt+(d.fallback?' — ⚠ fallback data':'');
+    }
+  }
+
+  // ── Load national data ──────────────────────────────────────────────────────
+  async function loadNational() {
+    setPulse('loading','Fetching live data\u2026');
+    try {
+      const res = await fetch('/api/scores');
+      if (!res.ok) throw new Error('API '+res.status);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      NATIONAL.us = j.us;
+      NATIONAL.ca = j.ca;
+      NATIONAL.ratesUS = j.ratesUS;
+      NATIONAL.ratesCA = j.ratesCA;
+      lastUpdated = j.updated ? new Date(j.updated) : new Date();
+      setPulse('live','Live data');
+      if (!currentCity) {
+        render(NATIONAL[country]);
+        renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+      }
+    } catch(err) {
+      setPulse('error','Could not fetch live data — showing cached values');
+      showError('API error: '+err.message+'. Check that FRED_API_KEY is set in Vercel environment variables.');
+      NATIONAL.us = {supply:42.34,afford:51.24,crash:46.75,health:50.9,raw:{}};
+      NATIONAL.ca = {supply:32,afford:38.5,crash:58.2,health:43.1,raw:{}};
+      if (!currentCity) render(NATIONAL[country]);
+    }
+  }
+
+  // ── Load city data ──────────────────────────────────────────────────────────
+  async function loadCity(cityName) {
+    setPulse('loading','Fetching '+cityName+' data\u2026');
+    document.getElementById('error-note').style.display = 'none';
+    try {
+      const res = await fetch('/api/scores?city='+encodeURIComponent(cityName));
+      const j = await res.json();
+      if (!res.ok || j.error) {
+        if (j.suggestions?.length) {
+          showError('City "'+cityName+'" not found. Did you mean: '+j.suggestions.join(', ')+'?');
+        } else {
+          showError('City "'+cityName+'" not found. Try searching for a major city.');
+        }
+        setPulse('error','City not found');
+        return;
+      }
+      currentCity = {name: j.city, country: j.country};
+      lastUpdated = j.updated ? new Date(j.updated) : new Date();
+      setPulse('live','Live data — '+j.city);
+      render(j.data, j.city, j.country);
+      if (j.rates) renderRates(j.rates, j.country);
+      // Sync country toggle to city's country
+      const toggle = document.getElementById('country-toggle');
+      toggle.checked = (j.country === 'ca');
+      country = j.country;
+    } catch(err) {
+      setPulse('error','Error loading city data');
+      showError('Error: '+err.message);
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function setPulse(state, txt) {
+    document.getElementById('pulse').className = 'pulse '+state;
+    document.getElementById('status-txt').textContent = txt;
+  }
+  function showError(msg) {
+    const el = document.getElementById('error-note');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // ── Autocomplete ────────────────────────────────────────────────────────────
+  const searchInput = document.getElementById('search-input');
+  const sugBox      = document.getElementById('suggestions');
+  const clearBtn    = document.getElementById('search-clear');
+  let currentSugs   = [];
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    clearBtn.style.display = q ? 'block' : 'none';
+    if (!q) { closeSugs(); return; }
+    currentSugs = CITIES.filter(c => c.n.toLowerCase().includes(q)).slice(0,8);
+    if (!currentSugs.length) { closeSugs(); return; }
+    sugBox.innerHTML = currentSugs.map((c,i) =>
+      `<div class="sug-item" data-idx="${i}">
+        <span class="sug-flag">${c.c==='ca'?'🇨🇦':'🇺🇸'}</span>
+        <span>${c.n}</span>
+        <span class="sug-country">${c.c.toUpperCase()}</span>
+      </div>`
+    ).join('');
+    sugBox.classList.add('open');
+    sugIdx = -1;
+    sugBox.querySelectorAll('.sug-item').forEach(el => {
+      el.addEventListener('click', () => selectCity(currentSugs[+el.dataset.idx].n));
+    });
+  });
+
+  searchInput.addEventListener('keydown', e => {
+    if (!sugBox.classList.contains('open')) {
+      if (e.key==='Enter' && searchInput.value.trim()) { selectCity(searchInput.value.trim()); return; }
+      return;
+    }
+    const items = sugBox.querySelectorAll('.sug-item');
+    if (e.key==='ArrowDown') { e.preventDefault(); sugIdx=Math.min(sugIdx+1,items.length-1); highlightSug(items); }
+    else if (e.key==='ArrowUp') { e.preventDefault(); sugIdx=Math.max(sugIdx-1,-1); highlightSug(items); }
+    else if (e.key==='Enter') { e.preventDefault(); if(sugIdx>=0) selectCity(currentSugs[sugIdx].n); else if(searchInput.value.trim()) selectCity(searchInput.value.trim()); }
+    else if (e.key==='Escape') closeSugs();
+  });
+
+  function highlightSug(items) {
+    items.forEach((el,i) => el.classList.toggle('active', i===sugIdx));
+    if (sugIdx>=0) items[sugIdx].scrollIntoView({block:'nearest'});
+  }
+
+  function closeSugs() { sugBox.classList.remove('open'); sugIdx=-1; }
+
+  function selectCity(name) {
+    searchInput.value = name;
+    clearBtn.style.display = 'block';
+    closeSugs();
+    loadCity(name);
+  }
+
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    clearBtn.style.display = 'none';
+    closeSugs();
+    currentCity = null;
+    document.getElementById('error-note').style.display = 'none';
+    render(NATIONAL[country]);
+    renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+    setPulse('live','Live data');
+    document.getElementById('updated-txt').textContent = lastUpdated
+      ? 'Last updated: '+lastUpdated.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'})
+      : 'National data';
+  });
+
+  document.addEventListener('click', e => { if (!document.getElementById('search-wrap').contains(e.target)) closeSugs(); });
+
+  // ── Country toggle ──────────────────────────────────────────────────────────
+  document.getElementById('country-toggle').addEventListener('change', function() {
+    country = this.checked ? 'ca' : 'us';
+    if (!currentCity) {
+      render(NATIONAL[country]);
+      renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+    }
+  });
+
+  // ── City back button ────────────────────────────────────────────────────────
+  document.getElementById('city-back').addEventListener('click', () => {
+    currentCity = null;
+    searchInput.value = '';
+    clearBtn.style.display = 'none';
+    document.getElementById('error-note').style.display = 'none';
+    render(NATIONAL[country]);
+    renderRates(country === 'ca' ? NATIONAL.ratesCA : NATIONAL.ratesUS, country);
+  });
+
+  // ── Raw toggle ──────────────────────────────────────────────────────────────
+  document.getElementById('raw-toggle').addEventListener('click', function() {
+    document.getElementById('raw-data').classList.toggle('open');
+    this.textContent = this.textContent.includes('Show') ? 'Hide raw data' : 'Show raw data';
+  });
+
+  // ── Boot ─────────────────────────────────────────────────────────────────────
+  loadNational();
+  setInterval(loadNational, 3600000);
+</script>
+</body>
+</html>

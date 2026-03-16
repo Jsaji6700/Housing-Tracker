@@ -1,0 +1,6 @@
+{
+  "name": "housing-tracker",
+  "version": "1.0.0",
+  "description": "Live housing affordability dashboard",
+  "engines": { "node": ">=18" }
+}
