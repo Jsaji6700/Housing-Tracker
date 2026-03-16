@@ -558,6 +558,64 @@
   });
 
   // ── Boot ─────────────────────────────────────────────────────────────────────
+
+  // ── Rates & Inflation rendering ─────────────────────────────────────────────
+  function renderRates(ratesData, country) {
+    if (!ratesData) return;
+    const isCA = country === 'ca';
+    document.getElementById('rates-panel-title').textContent = isCA ? 'Interest Rates (BOC)' : 'Interest Rates (Fed)';
+    document.getElementById('infl-panel-title').textContent  = isCA ? 'Inflation (Stats Can)' : 'Inflation (CPI / PCE)';
+
+    const rates = ratesData.rates || {};
+    const infl  = ratesData.inflation || {};
+
+    const rateKeys = isCA
+      ? ['overnight','prime','mort5y','bond2y','bond5y','bond10y','bond30y','spread']
+      : ['fedFunds','prime','mort30','mort15','t2y','t5y','t10y','t30y','spread'];
+
+    let rHtml = '';
+    rateKeys.forEach(k => {
+      const r = rates[k];
+      if (!r || r.value === null || r.value === undefined) return;
+      const v = r.value;
+      const diff = (r.prev !== null && r.prev !== undefined) ? parseFloat((v - r.prev).toFixed(3)) : null;
+      let chgHtml = '';
+      if (diff !== null) {
+        const cls = diff > 0.001 ? 'up' : diff < -0.001 ? 'dn' : 'flat';
+        const arrow = diff > 0.001 ? '&#9650;' : diff < -0.001 ? '&#9660;' : '&#8212;';
+        chgHtml = '<span class="rate-chg ' + cls + '">' + arrow + ' ' + Math.abs(diff).toFixed(2) + '</span>';
+      }
+      if (k === 'spread') {
+        const cls2 = v < 0 ? 'inverted' : v < 0.25 ? 'flat' : 'normal';
+        const label = v < 0 ? 'Yield curve inverted' : v < 0.25 ? 'Yield curve flat' : 'Yield curve normal';
+        rHtml += '<div class="rate-row"><span class="rate-lbl">' + r.label + '</span><span class="rate-val">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%</span>' + chgHtml + '</div><div style="padding:4px 0 6px"><span class="spread-pill ' + cls2 + '">' + label + '</span></div>';
+      } else {
+        rHtml += '<div class="rate-row"><span class="rate-lbl">' + r.label + '</span><span class="rate-val">' + v.toFixed(2) + '%</span>' + chgHtml + '</div>';
+      }
+    });
+    document.getElementById('rates-rows').innerHTML = rHtml || '<div style="color:var(--muted);font-size:12px">No rate data</div>';
+
+    const inflKeys = isCA
+      ? ['cpi','coreCpi']
+      : ['cpi','coreCpi','pce','corePce','inflExp','breakeven','tipsReal'];
+
+    const MAX_INFL = 8;
+    let iHtml = '';
+    inflKeys.forEach(k => {
+      const r = infl[k];
+      if (!r || r.value === null || r.value === undefined) return;
+      const v = r.value;
+      const pct = Math.min(Math.max(v / MAX_INFL * 100, 0), 100);
+      const targetPct = ((r.target || 2) / MAX_INFL * 100);
+      const excess = v - (r.target || 2);
+      const barColor = excess <= 0 ? '#1D9E75' : excess < 1 ? '#FAC775' : excess < 2 ? '#EF9F27' : '#E24B4A';
+      const note = r.note ? ' <span style="font-size:10px;opacity:.5">(' + r.note + ')</span>' : '';
+      iHtml += '<div class="infl-row"><div class="infl-lbl">' + r.label + note + '</div><div class="infl-track"><div class="infl-fill" style="width:' + pct + '%;background:' + barColor + '"></div><div class="infl-target" style="left:' + targetPct + '%"></div></div><div class="infl-pct" style="color:' + barColor + '">' + (v >= 0 ? '+' : '') + v.toFixed(1) + '%</div></div>';
+    });
+    iHtml += '<div style="font-size:10px;color:var(--muted);margin-top:4px">Vertical line = 2% target &mdash; bar scale 0&ndash;8%</div>';
+    document.getElementById('infl-rows').innerHTML = iHtml || '<div style="color:var(--muted);font-size:12px">No inflation data</div>';
+  }
+
   loadNational();
   setInterval(loadNational, 3600000);
 </script>
