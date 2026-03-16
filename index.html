@@ -643,6 +643,8 @@
       render(j.data, j.city, j.country);
       if (j.rates) renderRates(j.rates, j.country);
       renderListings(j.listings, { display: j.city, country: j.country, lat: j.lat, lng: j.lng });
+      const _cc = CITY_COORDS[j.city] || (Object.entries(CITY_COORDS).find(([k]) => k.toLowerCase().startsWith(j.city.toLowerCase().split(',')[0].trim())) || [])[1];
+      if (_cc) showMap(_cc.lat, _cc.lng, j.city, j.data); else showMap(j.lat||43.7, j.lng||-79.4, j.city, j.data);
       // Sync country toggle to city's country
       const toggle = document.getElementById('country-toggle');
       toggle.checked = (j.country === 'ca');
@@ -833,50 +835,50 @@
     renderListings(window._lastListingsData);
   }
 
-  function renderListings(data) {
-    window._lastListingsData = data;
+  function renderListings(listingsData, meta) {
     const section = document.getElementById('listings-section');
-    if (!data) { section.style.display = 'none'; return; }
+    if (!meta) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-    const isCA = data.country === 'ca';
-    const city = (data.city || '').split(',')[0].trim();
-    const prov = data.prov || '';
-    const tab = currentListingTab;
+    const isCA = meta.country === 'ca';
+    const city = (meta.display || '').split(',')[0].trim();
+    const prov = meta.display ? (meta.display.split(', ')[1] || '') : '';
+    const tab  = currentListingTab;
     let html = '';
     if (isCA) {
       const cityEnc = encodeURIComponent(city + ', ' + prov);
       const saleUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&LocationText=' + cityEnc;
       const foreUrl = 'https://www.realtor.ca/map#ZoomLevel=12&CurrentPage=1&RecordsPerPage=12&PropertyTypeGroupID=1&TransactionTypeId=2&Keywords=power%20of%20sale&LocationText=' + cityEnc;
-      const zoloSlug = city.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const zoloUrl = 'https://www.zolo.ca/' + zoloSlug + '-real-estate';
+      const zoloSlug = city.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      const zoloUrl  = 'https://www.zolo.ca/' + zoloSlug + '-real-estate';
       if (tab === 'sale') {
-        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
-          '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.ca &#8599;</a>' +
-          '<a class="listings-link" href="' + zoloUrl + '" target="_blank">View on Zolo.ca &#8599;</a>' +
-          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Links open pre-filtered to ' + city + ', ' + prov + ' on Canada\'s official MLS portal.</p>';
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
+          + '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.ca &#8599;</a>'
+          + '<a class="listings-link" href="' + zoloUrl + '" target="_blank">View on Zolo.ca &#8599;</a>'
+          + '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Pre-filtered to ' + city + ', ' + prov + ' on Canada&#39;s MLS portal.</p>';
       } else {
-        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
-          '<a class="listings-link" href="' + foreUrl + '" target="_blank">Search power of sale listings on realtor.ca &#8599;</a>' +
-          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Power of sale / foreclosure listings for ' + city + ', ' + prov + ' via realtor.ca.</p>';
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
+          + '<a class="listings-link" href="' + foreUrl + '" target="_blank">Search power of sale listings on realtor.ca &#8599;</a>'
+          + '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Power of sale / foreclosure listings for ' + city + ', ' + prov + '.</p>';
       }
     } else {
-      const slug = (city + '-' + prov).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const saleUrl = 'https://www.realtor.com/realestateandhomes-search/' + slug;
-      const foreUrl = 'https://www.realtor.com/realestateandhomes-search/' + slug + '/type-foreclosure';
-      const zillowUrl = 'https://www.zillow.com/homes/' + encodeURIComponent(city + ' ' + prov);
+      const slug     = (city + '-' + prov).toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      const saleUrl  = 'https://www.realtor.com/realestateandhomes-search/' + slug;
+      const foreUrl  = 'https://www.realtor.com/realestateandhomes-search/' + slug + '/type-foreclosure';
+      const zillowUrl= 'https://www.zillow.com/homes/' + encodeURIComponent(city + ' ' + prov);
       if (tab === 'sale') {
-        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
-          '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.com &#8599;</a>' +
-          '<a class="listings-link" href="' + zillowUrl + '" target="_blank">View listings on Zillow &#8599;</a>' +
-          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Links open pre-filtered to ' + city + ', ' + prov + '.</p>';
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
+          + '<a class="listings-link" href="' + saleUrl + '" target="_blank">View homes for sale on realtor.com &#8599;</a>'
+          + '<a class="listings-link" href="' + zillowUrl + '" target="_blank">View listings on Zillow &#8599;</a>'
+          + '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Pre-filtered to ' + city + ', ' + prov + '.</p>';
       } else {
-        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">' +
-          '<a class="listings-link" href="' + foreUrl + '" target="_blank">View foreclosures on realtor.com &#8599;</a>' +
-          '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Foreclosure listings for ' + city + ', ' + prov + ' via realtor.com.</p>';
+        html = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
+          + '<a class="listings-link" href="' + foreUrl + '" target="_blank">View foreclosures on realtor.com &#8599;</a>'
+          + '</div><p style="font-size:11px;color:var(--muted);margin-top:8px">Foreclosure listings for ' + city + ', ' + prov + ' via realtor.com.</p>';
       }
     }
     document.getElementById('listings-content').innerHTML = html;
   }
+
 
   function showMap(lat, lng, cityName, scores) {
     document.getElementById('map-wrap').style.display = 'block';
@@ -963,6 +965,58 @@
   const leafletScript = document.createElement('script');
   leafletScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   document.head.appendChild(leafletScript);
+
+
+  // ── Most Affordable Zones ──────────────────────────────────────────────────
+  const AFFORD_DATA = [
+    {city:"Hearst, ON",            prov:"ON", score:44.1, pop:"4,722",   country:"ca", lat:49.69, lng:-83.67},
+    {city:"Sioux Lookout, ON",     prov:"ON", score:44.1, pop:"5,272",   country:"ca", lat:50.09, lng:-91.91},
+    {city:"Cochrane, ON",          prov:"ON", score:43.6, pop:"5,340",   country:"ca", lat:49.06, lng:-81.01},
+    {city:"Kapuskasing, ON",       prov:"ON", score:43.6, pop:"8,177",   country:"ca", lat:49.42, lng:-82.43},
+    {city:"Fort Frances, ON",      prov:"ON", score:43.6, pop:"7,559",   country:"ca", lat:48.61, lng:-93.40},
+    {city:"Dryden, ON",            prov:"ON", score:43.6, pop:"7,749",   country:"ca", lat:49.78, lng:-92.84},
+    {city:"Elliot Lake, ON",       prov:"ON", score:43.6, pop:"10,741",  country:"ca", lat:46.38, lng:-82.65},
+    {city:"Kirkland Lake, ON",     prov:"ON", score:43.1, pop:"7,981",   country:"ca", lat:48.15, lng:-80.03},
+    {city:"Kenora, ON",            prov:"ON", score:43.1, pop:"15,096",  country:"ca", lat:49.77, lng:-94.49},
+    {city:"Temiskaming Shores, ON",prov:"ON", score:43.1, pop:"9,920",   country:"ca", lat:47.52, lng:-79.68},
+    {city:"Timmins, ON",           prov:"ON", score:41.6, pop:"41,788",  country:"ca", lat:48.47, lng:-81.33},
+    {city:"Moose Jaw, SK",         prov:"SK", score:41.6, pop:"34,421",  country:"ca", lat:50.39, lng:-105.53},
+    {city:"Prince Albert, SK",     prov:"SK", score:41.6, pop:"37,756",  country:"ca", lat:53.20, lng:-105.75},
+    {city:"Brandon, MB",           prov:"MB", score:40.6, pop:"51,313",  country:"ca", lat:49.85, lng:-99.95},
+    {city:"Corner Brook, NL",      prov:"NL", score:41.1, pop:"19,770",  country:"ca", lat:48.95, lng:-57.95},
+    {city:"Cape Breton, NS",       prov:"NS", score:40.6, pop:"94,285",  country:"ca", lat:46.14, lng:-60.19},
+    {city:"Regina, SK",            prov:"SK", score:40.1, pop:"249,217", country:"ca", lat:50.45, lng:-104.62},
+    {city:"Saskatoon, SK",         prov:"SK", score:39.6, pop:"317,480", country:"ca", lat:52.13, lng:-106.67},
+    {city:"Winnipeg, MB",          prov:"MB", score:40.1, pop:"749,607", country:"ca", lat:49.90, lng:-97.14},
+    {city:"Saguenay, QC",          prov:"QC", score:40.6, pop:"160,980", country:"ca", lat:48.42, lng:-71.07},
+    {city:"Indianapolis, IN",      prov:"IN", score:52.1, pop:"887,642", country:"us", lat:39.77, lng:-86.16},
+    {city:"Columbus, OH",          prov:"OH", score:51.8, pop:"905,748", country:"us", lat:39.96, lng:-82.99},
+    {city:"Kansas City, MO",       prov:"MO", score:51.5, pop:"508,090", country:"us", lat:39.10, lng:-94.58},
+    {city:"Pittsburgh, PA",        prov:"PA", score:51.2, pop:"302,971", country:"us", lat:40.44, lng:-79.99},
+    {city:"Las Vegas, NV",         prov:"NV", score:50.8, pop:"641,903", country:"us", lat:36.17, lng:-115.14},
+  ];
+
+  function renderAffordable(filter) {
+    const data = filter === 'ca' ? AFFORD_DATA.filter(d => d.country === 'ca')
+               : filter === 'us' ? AFFORD_DATA.filter(d => d.country === 'us')
+               : AFFORD_DATA;
+    ['all','ca','us'].forEach(f => {
+      const el = document.getElementById('afford-tab-' + f);
+      if (el) el.classList.toggle('active', f === filter);
+    });
+    const html = data.map((d, i) => {
+      const col  = d.score >= 50 ? '#1D9E75' : d.score >= 43 ? '#FAC775' : '#EF9F27';
+      const flag = d.country === 'ca' ? 'CA' : 'US';
+      return '<div class="afford-card" onclick="selectCity('' + d.city + '')" title="Click to view ' + d.city + '">'
+        + '<div class="afford-rank">#' + (i+1) + ' ' + flag + '</div>'
+        + '<div class="afford-city">' + d.city.split(',')[0] + '</div>'
+        + '<div class="afford-prov">' + (d.city.split(', ')[1] || d.prov) + '</div>'
+        + '<div class="afford-score" style="color:' + col + '">' + d.score.toFixed(1) + '</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:2px">pop. ' + d.pop + '</div>'
+        + '</div>';
+    }).join('');
+    document.getElementById('afford-grid').innerHTML = html;
+  }
 
   loadNational();
   setInterval(loadNational, 3600000);
