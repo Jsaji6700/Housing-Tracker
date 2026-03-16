@@ -1172,6 +1172,16 @@ async function fredLatest(id, key) {
 }
 async function fredVal(id, key) { const r = await fredLatest(id,key); return r.value; }
 
+async function fredHistory(id, key, limit=20) {
+  try {
+    const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${key}&file_type=json&sort_order=asc&limit=${limit}`);
+    const j = await r.json();
+    return (j.observations||[])
+      .filter(o => o.value !== '.' && o.value !== '')
+      .map(o => ({ date: o.date, value: parseFloat(o.value) }));
+  } catch { return []; }
+}
+
 // ── US NATIONAL ────────────────────────────────────────────────────────────────
 async function fetchUS(key) {
   const [mortgageRate,treasury10y,affordIndex,inventory,medianIncome,medianPrice,
@@ -1205,17 +1215,18 @@ function computeUS(r) {
 
 // ── US CITY ────────────────────────────────────────────────────────────────────
 async function fetchCityUS(metro,key) {
-  const [natMortgage,natTreasury,natAfford,natInventory,natDelinq,natVacancy,natCPI,cityHPI,cityUnemp]=await Promise.all([
+  const [natMortgage,natTreasury,natAfford,natInventory,natDelinq,natVacancy,natCPI,cityHPI,cityUnemp,hpiHistory]=await Promise.all([
     fredVal('MORTGAGE30US',key),fredVal('DGS10',key),fredVal('FIXHAI',key),fredVal('ACTLISCOUUS',key),
     fredVal('DRSFRMACBS',key),fredVal('RVACRATE',key),fredVal('CPIAUCSL',key),
     metro.hpi?fredVal(metro.hpi,key):Promise.resolve(null),
     metro.unemp?fredVal(metro.unemp,key):Promise.resolve(null),
+    metro.hpi?fredHistory(metro.hpi,key,20):Promise.resolve([]),
   ]);
   const cityPrice=cityHPI?(cityHPI/550)*420000:420000;
   const priceRatio=cityPrice/420000;
   const cityInvProxy=(natInventory||750000)/Math.max(1,priceRatio*1.2);
   const supplyScore=parseFloat(Math.min((cityInvProxy/(1500000*0.05))*100,100).toFixed(2));
-  const r={mortgageRate:natMortgage,treasury10y:natTreasury,affordIndex:natAfford?(natAfford*(420000/cityPrice)):null,medianIncome:metro.med_inc,medianPrice:cityPrice,delinquency:natDelinq,vacancyRate:natVacancy,unemployRate:cityUnemp,cpi:natCPI,cityHPI};
+  const r={mortgageRate:natMortgage,treasury10y:natTreasury,affordIndex:natAfford?(natAfford*(420000/cityPrice)):null,medianIncome:metro.med_inc,medianPrice:cityPrice,delinquency:natDelinq,vacancyRate:natVacancy,unemployRate:cityUnemp,cpi:natCPI,cityHPI,hpiHistory};
   let ap=0;
   ap+=r.affordIndex?Math.min((r.affordIndex/150)*40,40):15;
   ap+=Math.max(0,Math.min(20,20-((r.medianPrice/r.medianIncome)-4)*2.5));
