@@ -1195,46 +1195,40 @@
   }
 
   async function fetchCategory(cat, lat, lng) {
-    const q = CAT_QUERY[cat].replace(/LAT/g, lat).replace(/LNG/g, lng);
-    const body = `[out:json][timeout:12];${q};out 30;`;
     try {
-      const r = await fetch('https://overpass-api.de/api/interpreter', {
-        method:'POST', body:'data='+encodeURIComponent(body),
-        signal: AbortSignal.timeout(12000)
-      });
+      const r = await fetch(`/api/places?lat=${lat}&lng=${lng}&cat=${cat}&radius=25000`);
+      if (!r.ok) throw new Error('API error');
       const j = await r.json();
-      const seen = new Set();
-      _exploreData[cat] = (j.elements||[])
-        .filter(e => {
-          const name = e.tags?.name;
-          if (!name || seen.has(name)) return false;
-          seen.add(name);
-          return true;
-        })
-        .map(e => {
-          const tags = e.tags || {};
-          const typeKey = Object.keys(PLACE_ICONS).find(k =>
-            tags.tourism===k||tags.leisure===k||tags.amenity===k||tags.shop===k||tags.natural===k
-          ) || cat;
-          const dist = lat && lng && e.lat && e.lon
-            ? haversine(lat, lng, e.lat, e.lon) : null;
-          return {
-            name: tags.name,
-            type: typeKey,
-            icon: PLACE_ICONS[typeKey] || '📍',
-            dist,
-            lat: e.lat || (e.center?.lat),
-            lng: e.lon || (e.center?.lon),
-            website: tags.website || tags['contact:website'] || null,
-            wikidata: tags.wikidata || null,
-            wikipedia: tags.wikipedia || null,
-          };
-        })
-        .filter(p => p.lat && p.lng)
-        .sort((a,b) => (a.dist||99) - (b.dist||99))
-        .slice(0, 12);
+      _exploreData[cat] = (j.elements || []).map(e => ({
+        ...e,
+        icon: PLACE_ICONS[e.type] || (cat==='restaurant'?'🍽':cat==='park'?'🌳':cat==='shop'?'🛍':'📍'),
+      }));
       if (cat === _exploreActive) renderExploreGrid(_exploreActive);
-    } catch { /* silently fail */ }
+    } catch {
+      // Fallback: try Overpass directly from browser
+      const q = CAT_QUERY[cat].replace(/LAT/g, lat).replace(/LNG/g, lng);
+      const body = `[out:json][timeout:15];${q};out center 30;`;
+      try {
+        const r2 = await fetch('https://overpass-api.de/api/interpreter', {
+          method:'POST', body:'data='+encodeURIComponent(body),
+          signal: AbortSignal.timeout(15000)
+        });
+        const j = await r2.json();
+        const seen = new Set();
+        _exploreData[cat] = (j.elements||[])
+          .filter(e => { const n=e.tags?.name; if(!n||seen.has(n)) return false; seen.add(n); return true; })
+          .map(e => {
+            const eLat = e.lat||e.center?.lat, eLng = e.lon||e.center?.lon;
+            const dist = eLat&&eLng ? haversine(lat,lng,eLat,eLng) : null;
+            const type = Object.keys(PLACE_ICONS).find(k=>e.tags[k]||e.tags.tourism===k||e.tags.leisure===k||e.tags.amenity===k||e.tags.shop===k) || cat;
+            return { name:e.tags.name, type, icon:PLACE_ICONS[type]||'📍', dist:dist?Math.round(dist*10)/10:null, lat:eLat, lng:eLng, wikipedia:e.tags.wikipedia||null };
+          })
+          .filter(p=>p.lat&&p.lng)
+          .sort((a,b)=>(a.dist||99)-(b.dist||99))
+          .slice(0,16);
+        if (cat === _exploreActive) renderExploreGrid(_exploreActive);
+      } catch { /* give up */ }
+    }
   }
 
   function filterExplore(cat) {
@@ -1247,58 +1241,68 @@
     const grid = document.getElementById('explore-grid');
     const places = _exploreData[cat];
     if (!places || !places.length) {
-      grid.innerHTML = '<div class="explore-empty">Loading… or no places found nearby.</div>';
+      grid.innerHTML = `<div class="explore-empty">
+        <div style="font-size:28px;margin-bottom:8px">${cat==='restaurant'?'🍽':cat==='park'?'🌳':cat==='shop'?'🛍':'🏛'}</div>
+        <div>Loading nearby ${cat}s… this may take a few seconds.</div>
+        <div style="margin-top:8px"><a href="https://www.google.com/maps/search/${encodeURIComponent(cat+'s near '+_exploreCity)}" target="_blank" style="color:var(--blue);font-size:12px">Search on Google Maps ↗</a></div>
+      </div>`;
       return;
     }
     grid.innerHTML = places.map(p => {
-      const distStr = p.dist ? (p.dist < 1 ? Math.round(p.dist*1000)+'m' : p.dist.toFixed(1)+'km') : '';
+      const distStr = p.dist != null ? (p.dist < 1 ? Math.round(p.dist*1000)+'m' : p.dist.toFixed(1)+'km') : '';
       const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(p.name)}/@${p.lat},${p.lng},15z`;
-      const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&destination_place_id=${encodeURIComponent(p.name)}`;
+      const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+      const extra   = p.cuisine ? `<div class="place-dist" style="margin-top:2px">🍴 ${p.cuisine.replace(/;/g,', ')}</div>` : '';
+      const hours   = p.opening_hours ? `<div class="place-dist" style="margin-top:2px">🕐 ${p.opening_hours.split(';')[0]}</div>` : '';
       const wikiImg = p.wikipedia ? getWikiImage(p.wikipedia) : null;
       return `<div class="place-card">
-        ${wikiImg
-          ? `<img class="place-photo" src="${wikiImg}" alt="${p.name}" loading="lazy" onerror="this.parentNode.querySelector('.place-photo-placeholder').style.display='flex';this.style.display='none'">`
-          : ''}
-        <div class="place-photo-placeholder" style="${wikiImg ? 'display:none' : ''}">${p.icon}</div>
+        <img class="place-photo" src="${wikiImg||''}" alt="${p.name}" loading="lazy"
+          style="${wikiImg?'':'display:none'}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="place-photo-placeholder" style="${wikiImg?'display:none':''}">
+          ${p.icon||'📍'}
+        </div>
         <div class="place-body">
           <div class="place-name">${p.name}</div>
-          <div class="place-type">${p.type.replace(/_/g,' ')}</div>
+          <div class="place-type">${(p.type||cat).replace(/_/g,' ')}</div>
           ${distStr ? `<div class="place-dist">📍 ${distStr} away</div>` : ''}
+          ${extra}${hours}
           <div class="place-actions">
-            <a class="place-btn place-btn-map" href="${mapsUrl}" target="_blank">View on map</a>
-            <a class="place-btn place-btn-nav" href="${navUrl}" target="_blank">Directions</a>
+            <a class="place-btn place-btn-map" href="${mapsUrl}" target="_blank">🗺 Map</a>
+            <a class="place-btn place-btn-nav" href="${navUrl}" target="_blank">🧭 Go</a>
           </div>
         </div>
       </div>`;
     }).join('');
+    // Lazy-load wiki images
+    places.forEach(p => { if (p.wikipedia) getWikiImage(p.wikipedia, p.name); });
   }
 
-  // Fetch Wikipedia image URL for a place
   const _wikiImgCache = {};
-  function getWikiImage(wikipedia) {
+  function getWikiImage(wikipedia, placeName) {
     if (!wikipedia) return null;
     const title = wikipedia.replace(/^[a-z]+:/, '');
-    if (_wikiImgCache[title] !== undefined) return _wikiImgCache[title];
-    _wikiImgCache[title] = null; // mark as fetching
-    const api = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-    fetch(api, { signal: AbortSignal.timeout(5000) })
+    if (_wikiImgCache[title]) return _wikiImgCache[title];
+    if (_wikiImgCache[title] === null) return null; // already fetching
+    _wikiImgCache[title] = null;
+    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, { signal: AbortSignal.timeout(6000) })
       .then(r => r.json())
       .then(j => {
-        const url = j?.thumbnail?.source || null;
+        const url = j?.thumbnail?.source;
+        if (!url) return;
         _wikiImgCache[title] = url;
-        // Re-render if still on same tab
-        if (_exploreActive && url) {
-          const imgs = document.querySelectorAll('.place-photo');
-          imgs.forEach(img => {
-            if (img.alt === j.title) {
+        // Update any visible card with this place name
+        if (placeName) {
+          document.querySelectorAll('.place-photo').forEach(img => {
+            if (img.alt === placeName) {
               img.src = url;
               img.style.display = 'block';
-              img.nextElementSibling.style.display = 'none';
+              const ph = img.nextElementSibling;
+              if (ph) ph.style.display = 'none';
             }
           });
         }
-      })
-      .catch(() => {});
+      }).catch(() => {});
     return null;
   }
 
