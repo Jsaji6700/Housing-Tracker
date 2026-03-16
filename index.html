@@ -880,10 +880,10 @@
     if (isCA) {
       const provFull = PROV_FULL[prov] || prov.toLowerCase();
       const citySlug = city.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+$/,'');
-      const realtorCaSlug = citySlug + '-' + provFull;
-      const saleUrl = 'https://www.realtor.ca/real-estate/in-' + realtorCaSlug;
-      const foreUrl = 'https://www.realtor.ca/real-estate/in-' + realtorCaSlug + '?transactionTypeId=2&keyword=power%20of%20sale';
-      const zoloUrl = 'https://www.zolo.ca/' + citySlug + '-' + provFull + '-real-estate';
+      const provCode = prov.toLowerCase();
+      const saleUrl = 'https://www.realtor.ca/' + provCode + '/' + citySlug + '/real-estate';
+      const foreUrl = 'https://www.realtor.ca/' + provCode + '/' + citySlug + '/real-estate?keywords=power+of+sale';
+      const zoloUrl = 'https://www.zolo.ca/' + citySlug + '-real-estate';
       if (tab === 'sale') {
         linksHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'
           + '<a class="listings-link" href="' + saleUrl + '" target="_blank">realtor.ca &#8599;</a>'
