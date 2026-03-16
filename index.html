@@ -17,8 +17,12 @@
       --font-mono:'Space Mono',monospace;--font-sans:'DM Sans',sans-serif;
       --r:12px;--rs:8px;
     }
-    body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;padding:2rem 1rem}
-    .page{max-width:860px;margin:0 auto}
+    body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;padding:2rem 1.5rem}
+    .page{max-width:1400px;margin:0 auto}
+    .main-layout{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start}
+    .main-content{min-width:0}
+    .sidebar{display:flex;flex-direction:column;gap:12px;position:sticky;top:1.5rem}
+    @media(max-width:900px){.main-layout{grid-template-columns:1fr}.sidebar{position:static}}
 
     /* HEADER */
     .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
@@ -260,8 +264,7 @@
 </head>
 <body>
 <div class="page">
-
-  <div class="header">
+<div class="header">
     <div class="title">
       <h1>HOUSING TRACKER</h1>
       <p>Unbiased, raw housing data &mdash; powered by FRED &amp; Bank of Canada</p>
@@ -286,6 +289,9 @@
     <button class="search-clear" id="search-clear" title="Clear">&times;</button>
     <div class="suggestions" id="suggestions"></div>
   </div>
+
+<div class="main-layout">
+<div class="main-content">
 
   <!-- CITY BADGE (shown when viewing a city) -->
   <div class="city-badge" id="city-badge">
@@ -407,29 +413,7 @@
   </div>
 
   <!-- ── NEW WIDGETS ROW 3: News + City Compare ── -->
-  <div class="widget-row" id="widgets-row3">
-    <!-- News Feed -->
-    <div class="widget">
-      <h3>Housing News <span id="news-city-label" style="text-transform:none;font-weight:400;opacity:.6"></span></h3>
-      <div id="news-feed"><div class="news-loading">Loading news…</div></div>
-    </div>
-
-    <!-- City Compare -->
-    <div class="widget">
-      <h3>Compare Cities</h3>
-      <div class="compare-wrap">
-        <div class="compare-city-col">
-          <input class="compare-input" id="cmp-a" placeholder="City A e.g. Toronto" list="cmp-list-a">
-        </div>
-        <div class="compare-vs">VS</div>
-        <div class="compare-city-col">
-          <input class="compare-input" id="cmp-b" placeholder="City B e.g. Calgary" list="cmp-list-b">
-        </div>
-      </div>
-      <button class="compare-btn" onclick="runCompare()">Compare &#8594;</button>
-      <div id="compare-result" style="margin-top:12px"><div class="compare-empty">Enter two cities above</div></div>
-    </div>
-  </div>
+  <!-- Moved to sidebar -->
 
   <!-- RATES & INFLATION -->
   <div class="section-title">Interest Rates &amp; Inflation</div>
@@ -523,9 +507,35 @@
   <div class="footer">
     <div id="updated-txt">Fetching data&hellip;</div>
     <div style="margin-top:4px">Data: <a href="https://fred.stlouisfed.org" target="_blank">FRED / St. Louis Fed</a> &bull; <a href="https://www.bankofcanada.ca/valet/docs" target="_blank">Bank of Canada Valet API</a></div>
-    <div style="margin-top:4px">Scores refresh every hour &bull; 101 US metros &bull; 98 Canadian cities supported</div>
+    <div style="margin-top:4px">Scores refresh every hour &bull; 738 US cities &bull; 276 Canadian cities supported</div>
   </div>
-</div>
+
+</div><!-- end main-content -->
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+  <!-- News Feed -->
+  <div class="widget">
+    <h3>Housing News <span id="news-city-label" style="text-transform:none;font-weight:400;opacity:.6"></span></h3>
+    <div id="news-feed"><div class="news-loading">Loading news…</div></div>
+  </div>
+
+  <!-- Compare Cities -->
+  <div class="widget">
+    <h3>Compare Cities</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">
+      <input class="compare-input" id="cmp-a" placeholder="City A e.g. Toronto">
+      <div style="font-size:10px;color:var(--muted);text-align:center;font-family:var(--font-mono)">VS</div>
+      <input class="compare-input" id="cmp-b" placeholder="City B e.g. Calgary">
+    </div>
+    <button class="compare-btn" onclick="runCompare()">Compare &#8594;</button>
+    <div id="compare-result" style="margin-top:12px"><div class="compare-empty">Enter two cities above</div></div>
+  </div>
+
+</div><!-- end sidebar -->
+</div><!-- end main-layout -->
+</div><!-- end page -->
 
 <script>
   // ── City list for autocomplete ──────────────────────────────────────────────
@@ -1035,28 +1045,43 @@
     document.getElementById('news-city-label').textContent = city ? '— ' + city : '';
     document.getElementById('news-feed').innerHTML = '<div class="news-loading">Loading news…</div>';
     try {
-      const query = encodeURIComponent((city || 'housing market') + ' real estate housing 2026');
-      const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent('https://news.google.com/rss/search?q=' + query + '&hl=en-CA&gl=CA&ceid=CA:en')}&api_key=public&count=5`;
-      const r = await fetch(url);
+      const q = encodeURIComponent((city || 'housing market Canada') + ' real estate housing');
+      const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en-CA&gl=CA&ceid=CA:en`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+      const r = await fetch(proxyUrl);
       const j = await r.json();
-      if (j.status === 'ok' && j.items?.length) {
-        document.getElementById('news-feed').innerHTML = j.items.slice(0,5).map(item => `
-          <div class="news-item">
-            <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-            <div class="news-src">${item.author || new URL(item.link).hostname.replace('www.','')} &bull; ${new Date(item.pubDate).toLocaleDateString()}</div>
-          </div>`).join('');
-      } else {
-        throw new Error('no items');
-      }
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(j.contents, 'text/xml');
+      const items = [...doc.querySelectorAll('item')].slice(0, 6);
+      if (!items.length) throw new Error('no items');
+      document.getElementById('news-feed').innerHTML = items.map(item => {
+        const title = item.querySelector('title')?.textContent || '';
+        const link  = item.querySelector('link')?.textContent || '#';
+        const src   = item.querySelector('source')?.textContent || '';
+        const date  = item.querySelector('pubDate')?.textContent || '';
+        const ago   = date ? timeAgo(new Date(date)) : '';
+        return `<div class="news-item">
+          <a href="${link}" target="_blank" rel="noopener">${title}</a>
+          <div class="news-src">${src}${ago ? ' &bull; ' + ago : ''}</div>
+        </div>`;
+      }).join('');
     } catch {
-      // Fallback: link to Google News search
       const city2 = cityName ? cityName.split(',')[0].trim() : 'housing market';
       document.getElementById('news-feed').innerHTML = `
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Live news feed unavailable.</div>
-        <a href="https://news.google.com/search?q=${encodeURIComponent(city2+' real estate housing')}" target="_blank" style="font-size:12px;color:var(--blue)">Search ${city2} housing news on Google &#8599;</a>`;
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Could not load live feed.</div>
+        <a href="https://news.google.com/search?q=${encodeURIComponent(city2+' real estate')}" target="_blank" style="font-size:12px;color:var(--blue)">Search ${city2} housing news &#8599;</a>`;
     }
   }
-  loadCityNews(''); // load general news on startup
+
+  function timeAgo(date) {
+    const mins = Math.floor((Date.now() - date) / 60000);
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  }
+
+  loadCityNews('');
 
   // ── City Compare ─────────────────────────────────────────────────────────────
   async function runCompare() {
