@@ -247,10 +247,18 @@ const ALL_METROS = [...US_CITIES, ...CA_CITIES];
 
 function findMetro(q) {
   const clean = q.toLowerCase().trim();
-  return ALL_METROS.find(m =>
-    m.display.toLowerCase().includes(clean) ||
-    m.aliases.some(a => a.includes(clean) || clean.includes(a))
-  );
+  // 1. Exact alias match
+  let m = ALL_METROS.find(m => m.aliases.some(a => a === clean));
+  if (m) return m;
+  // 2. Display starts with query
+  m = ALL_METROS.find(m => m.display.toLowerCase().startsWith(clean));
+  if (m) return m;
+  // 3. Display contains query
+  m = ALL_METROS.find(m => m.display.toLowerCase().includes(clean));
+  if (m) return m;
+  // 4. Alias contains query (min length 4 to avoid short false matches like "la" in "kirkland lake")
+  m = ALL_METROS.find(m => m.aliases.some(a => a.length >= 4 && a.includes(clean)));
+  return m || null;
 }
 function suggestCities(q) {
   const c = q.toLowerCase();
