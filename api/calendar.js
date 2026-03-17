@@ -7,34 +7,65 @@ export default async function handler(req, res) {
   const isNext = req.query.week === 'next';
   const ffFile = isNext ? 'nextweek' : 'thisweek';
 
-  // ── Try ForexFactory (has real actuals) ───────────────────────────────────
-  try {
-    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`, {
+  // ── Try ForexFactory with multiple approaches ────────────────────────────
+  const FF_ATTEMPTS = [
+    // Attempt 1: standard FF headers
+    {
+      url: `https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json, */*',
-        'Referer': 'https://www.forexfactory.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.forexfactory.com/calendar',
         'Origin': 'https://www.forexfactory.com',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (r.ok) {
-      const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const filtered = data
-          .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
-          .map(e => ({
-            date: e.date||'', time: e.time||'All Day',
-            currency: e.currency, impact: e.impact,
-            title: e.title||'', forecast: e.forecast||'',
-            previous: e.previous||'', actual: e.actual||'',
-          }));
-        if (filtered.length > 0) {
-          return res.status(200).json({ events: filtered, count: filtered.length, source: 'forexfactory.com' });
-        }
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'cross-site',
       }
-    }
-  } catch { /* fall through */ }
+    },
+    // Attempt 2: no version param
+    {
+      url: `https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://www.forexfactory.com/',
+      }
+    },
+    // Attempt 3: via corsproxy (free CORS proxy as last resort)
+    {
+      url: `https://corsproxy.io/?${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
+      headers: { 'Accept': 'application/json' }
+    },
+    // Attempt 4: allorigins proxy
+    {
+      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
+      headers: { 'Accept': 'application/json' }
+    },
+  ];
+
+  for (const attempt of FF_ATTEMPTS) {
+    try {
+      const r = await fetch(attempt.url, {
+        headers: attempt.headers,
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (!Array.isArray(data) || data.length === 0) continue;
+      const filtered = data
+        .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
+        .map(e => ({
+          date: e.date||'', time: e.time||'All Day',
+          currency: e.currency, impact: e.impact,
+          title: e.title||'', forecast: e.forecast||'',
+          previous: e.previous||'', actual: e.actual||'',
+        }));
+      if (filtered.length > 0) {
+        return res.status(200).json({ events: filtered, count: filtered.length, source: 'forexfactory.com' });
+      }
+    } catch { continue; }
+  }
 
   // ── Build schedule ────────────────────────────────────────────────────────
   const now = new Date();
