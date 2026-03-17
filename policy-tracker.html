@@ -829,7 +829,8 @@ body::before {
     </div>
 
     <div class="cal-tabs">
-      <button class="cal-tab active" id="tab-this" style="cursor:default">This Week</button>
+      <button class="cal-tab active" onclick="loadCalendar('this')" id="tab-this">This Week</button>
+      <button class="cal-tab" onclick="loadCalendar('next')" id="tab-next">Next Week</button>
       <span style="margin-left:auto;font-size:10px;font-family:var(--mono)" id="cal-source"></span>
     </div>
 
@@ -1217,66 +1218,56 @@ let calWeek = 'this';
 
 async function loadCalendar(week) {
   calWeek = week || 'this';
+
+  // Update tab styles
+  document.getElementById('tab-this').classList.toggle('active', calWeek === 'this');
+  document.getElementById('tab-next').classList.toggle('active', calWeek === 'next');
   document.getElementById('cal-body').innerHTML = '<div class="cal-loading">Loading calendar…</div>';
 
   const srcEl = document.getElementById('cal-source');
 
-  // Try ForexFactory directly from browser (works client-side, blocked server-side)
-  const FF_URLS = [
-    'https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=1',
-    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
-  ];
-
-  for (const url of FF_URLS) {
-    try {
-      const r = await fetch(url, {
-        headers: {
-          'Accept': 'application/json, */*',
-        },
-        // no-cors would block reading, so try with cors first
-        mode: 'cors',
-      });
-      if (!r.ok) continue;
-      const data = await r.json();
-      if (!Array.isArray(data) || data.length === 0) continue;
-
-      const filtered = data
-        .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
-        .map(e => ({
-          date:     e.date     || '',
-          time:     e.time     || 'All Day',
-          currency: e.currency,
-          impact:   e.impact,
-          title:    e.title    || '',
-          forecast: e.forecast || '',
-          previous: e.previous || '',
-          actual:   e.actual   || '',
-        }));
-
-      if (filtered.length > 0) {
-        srcEl.textContent = '✓ Live from ForexFactory';
-        srcEl.style.color = 'var(--green)';
-        renderCalendar(filtered);
-        return;
-      }
-    } catch { continue; }
-  }
-
-  // FF failed from browser too — fall back to /api/calendar
+  // Try ForexFactory directly from browser first
+  const ffFile = calWeek === 'next' ? 'nextweek' : 'thisweek';
   try {
-    const r = await fetch('/api/calendar?week=this');
+    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`);
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const filtered = data
+          .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
+          .map(e => ({
+            date: e.date||'', time: e.time||'All Day',
+            currency: e.currency, impact: e.impact,
+            title: e.title||'', forecast: e.forecast||'',
+            previous: e.previous||'', actual: e.actual||'',
+          }));
+        if (filtered.length > 0) {
+          srcEl.textContent = '✓ Live from ForexFactory';
+          srcEl.style.color = 'var(--green)';
+          renderCalendar(filtered);
+          return;
+        }
+      }
+    }
+  } catch { /* fall through */ }
+
+  // Fallback to server-side /api/calendar
+  try {
+    const r = await fetch(`/api/calendar?week=${calWeek}`);
     const j = await r.json();
-    srcEl.textContent = '⚠ Estimated — ForexFactory unavailable';
-    srcEl.style.color = 'var(--yellow)';
+    srcEl.textContent = j.source === 'forexfactory.com'
+      ? '✓ Live from ForexFactory'
+      : '⚠ Estimated — ForexFactory unavailable';
+    srcEl.style.color = j.source === 'forexfactory.com' ? 'var(--green)' : 'var(--yellow)';
     if (j.events?.length) {
       renderCalendar(j.events);
     } else {
       document.getElementById('cal-body').innerHTML =
-        '<div class="cal-empty">No events found — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">view on ForexFactory ↗</a></div>';
+        `<div class="cal-empty">No ${calWeek === 'next' ? 'next' : 'this'} week events found.</div>`;
     }
   } catch {
     document.getElementById('cal-body').innerHTML =
-      '<div class="cal-empty">Could not load calendar — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">ForexFactory ↗</a></div>';
+      '<div class="cal-empty">Could not load — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">ForexFactory ↗</a></div>';
   }
 }
 
@@ -1374,7 +1365,7 @@ function formatCalDay(dateStr) {
 }
 
 // Load on init
-loadCalendar();
+loadCalendar('this');
 
 </script>
 </body>
