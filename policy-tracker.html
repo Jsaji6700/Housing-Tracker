@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Housing Tracker — Policy & Economy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0b0e;
+  --s1:       #10121a;
+  --s2:       #171b26;
+  --s3:       #1e2333;
+  --border:   rgba(255,255,255,.07);
+  --border2:  rgba(255,255,255,.14);
+  --text:     #e8eaf0;
+  --muted:    #5a6278;
+  --muted2:   #3a4058;
+  --red:      #e53935;
+  --red-dim:  rgba(229,57,53,.15);
+  --green:    #1db974;
+  --green-dim:rgba(29,185,116,.15);
+  --yellow:   #f5c518;
+  --yellow-dim:rgba(245,197,24,.12);
+  --orange:   #f07030;
+  --blue:     #3a7bd5;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+  --display:  'Bebas Neue', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 0% 0%, rgba(229,57,53,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(58,123,213,.05) 0%, transparent 55%);
+}
+
+.wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 32px 20px 80px; }
+
+/* ── TOP NAV ── */
+.topnav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px; padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 12px;
+}
+.topnav a.back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--muted); text-decoration: none; font-size: 11px;
+  letter-spacing: .08em; text-transform: uppercase;
+  transition: color .15s;
+}
+.topnav a.back:hover { color: var(--text); }
+.topnav .updated { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+/* ── HERO HEADER ── */
+.hero {
+  margin-bottom: 36px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.hero h1 {
+  font-family: var(--display);
+  font-size: clamp(36px, 6vw, 72px);
+  letter-spacing: 2px;
+  line-height: 1;
+  color: var(--text);
+}
+.hero h1 .accent { color: var(--red); }
+.hero .sub {
+  font-size: 11px; color: var(--muted); letter-spacing: .1em;
+  text-transform: uppercase; margin-top: 6px;
+}
+.health-pill {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 12px 18px;
+}
+.health-pill .hp-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.health-pill .hp-val { font-family: var(--display); font-size: 42px; color: var(--red); line-height: 1; }
+.health-pill .hp-status { font-size: 11px; color: var(--red); margin-top: 2px; }
+
+/* ── SECTION TITLES ── */
+.section-title {
+  font-family: var(--display);
+  font-size: 22px; letter-spacing: 1.5px;
+  color: var(--text); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.section-wrap { margin-bottom: 32px; }
+
+/* ── GRID LAYOUTS ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media(max-width:900px) { .grid4 { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:700px) {
+  .grid2,.grid3 { grid-template-columns: 1fr; }
+  .grid4 { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── PANEL ── */
+.panel {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+}
+.panel-head {
+  padding: 11px 16px; border-bottom: 1px solid var(--border);
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-body { padding: 14px 16px; }
+
+/* ── STAT CARDS ── */
+.stat-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px;
+}
+.sc-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.sc-val { font-family: var(--mono); font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+.sc-target { font-size: 10px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+.sc-change { font-size: 11px; font-family: var(--mono); font-weight: 600; margin-top: 4px; }
+.sc-change.up { color: var(--red); }
+.sc-change.dn { color: var(--green); }
+.sc-change.flat { color: var(--muted); }
+
+/* ── STATUS BADGES ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 500; padding: 3px 8px;
+  border-radius: 3px; white-space: nowrap;
+}
+.badge-red    { background: var(--red-dim);    color: #ff6b6b; border: 1px solid rgba(229,57,53,.3); }
+.badge-green  { background: var(--green-dim);  color: #4ade80; border: 1px solid rgba(29,185,116,.3); }
+.badge-yellow { background: var(--yellow-dim); color: #f5c518; border: 1px solid rgba(245,197,24,.3); }
+.badge-blue   { background: rgba(58,123,213,.15); color: #6ba3f5; border: 1px solid rgba(58,123,213,.3); }
+.badge-gray   { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border); }
+.dot-red    { width:7px; height:7px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.dot-green  { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.dot-yellow { width:7px; height:7px; border-radius:50%; background:var(--yellow); flex-shrink:0; }
+.dot-gray   { width:7px; height:7px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+
+/* ── TABLES ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table thead th {
+  text-align: left; padding: 8px 10px;
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.data-table thead th:not(:first-child) { text-align: right; }
+.data-table tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: rgba(255,255,255,.025); }
+.data-table td { padding: 9px 10px; vertical-align: middle; }
+.data-table td:not(:first-child) { text-align: right; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.dim { color: var(--muted); }
+.hi  { color: var(--yellow); font-weight: 600; }
+.good { color: var(--green); font-weight: 600; }
+.bad  { color: var(--red); font-weight: 600; }
+.warn { color: var(--orange); font-weight: 600; }
+
+/* ── PROGRESS BAR ── */
+.progress-wrap { margin-top: 8px; }
+.progress-track { height: 4px; background: var(--s3); border-radius: 99px; overflow: hidden; margin-bottom: 4px; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+/* ── PROMISE TRACKER TABLE ── */
+.promise-row td:first-child { color: var(--text); font-weight: 500; }
+.bill-num { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* ── REGION GRID ── */
+.region-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+@media(max-width:800px) { .region-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:500px) { .region-grid { grid-template-columns: 1fr; } }
+.region-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px;
+}
+.region-name { font-family: var(--display); font-size: 20px; letter-spacing: 1px; margin-bottom: 10px; }
+.region-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+.region-row:last-child { border-bottom: none; }
+.region-row .rl { color: var(--muted); }
+.region-row .rv { font-family: var(--mono); font-weight: 600; }
+
+/* ── INVESTMENT TABLE ── */
+.inv-change-up   { color: var(--red);   font-family: var(--mono); font-size: 11px; }
+.inv-change-dn   { color: var(--green); font-family: var(--mono); font-size: 11px; }
+.inv-change-flat { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.asset-icon { font-size: 14px; margin-right: 4px; }
+
+/* ── COST OF LIVING ── */
+.col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; }
+.col-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px;
+}
+.col-name { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.col-price { font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--text); }
+.col-change { font-size: 10px; font-family: var(--mono); margin-top: 4px; }
+
+/* ── ECONOMIC INDEX ── */
+.econ-grid { display: grid; grid-template-columns: 200px 1fr; gap: 16px; align-items: start; }
+@media(max-width:600px) { .econ-grid { grid-template-columns: 1fr; } }
+.econ-score-box { background: var(--s2); border: 1px solid var(--border); border-radius: 6px; padding: 20px; text-align: center; }
+.econ-score-val { font-family: var(--display); font-size: 64px; line-height: 1; }
+.econ-score-label { font-size: 11px; margin-top: 6px; }
+.econ-indicators {}
+.econ-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.econ-row:last-child { border-bottom: none; }
+.econ-name { flex: 1; font-size: 12px; color: var(--muted); }
+.econ-val { font-family: var(--mono); font-size: 12px; width: 70px; text-align: right; }
+.econ-bar-track { flex: 0 0 80px; height: 4px; background: var(--s3); border-radius: 99px; overflow: hidden; }
+.econ-bar-fill { height: 100%; border-radius: 99px; }
+.risk-pill { font-size: 9px; padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+
+/* ── AGENDA 47 ── */
+.agenda-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.agenda-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.4; }
+.agenda-meta { font-size: 10px; color: var(--muted); }
+.agenda-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+
+/* ── LAST UPDATED ── */
+.data-source { font-size: 10px; color: var(--muted2); margin-top: 6px; font-family: var(--mono); text-align: right; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--s3); border-radius: 3px; }
+
+/* ── ANIMATE IN ── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.section-wrap { animation: fadeUp .4s ease both; }
+.section-wrap:nth-child(2) { animation-delay: .05s; }
+.section-wrap:nth-child(3) { animation-delay: .10s; }
+.section-wrap:nth-child(4) { animation-delay: .15s; }
+.section-wrap:nth-child(5) { animation-delay: .20s; }
+.section-wrap:nth-child(6) { animation-delay: .25s; }
+.section-wrap:nth-child(7) { animation-delay: .30s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- NAV -->
+  <div class="topnav">
+    <a href="/" class="back">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Housing Tracker
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="updated" id="last-updated">Fetching live data…</span>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border2);border-radius:999px;padding:5px 12px;font-size:12px">
+        <span style="font-size:14px">🇺🇸</span>
+        <span id="lbl-us" style="color:var(--text);font-weight:600;cursor:pointer" onclick="setCountry('us')">US</span>
+        <div style="position:relative;width:36px;height:20px;cursor:pointer" onclick="toggleCountry()">
+          <div style="position:absolute;inset:0;background:var(--s3);border:1px solid var(--border2);border-radius:10px"></div>
+          <div id="sw-thumb" style="position:absolute;width:14px;height:14px;top:2px;left:3px;border-radius:50%;background:var(--red);transition:transform .25s,background .25s"></div>
+        </div>
+        <span id="lbl-ca" style="color:var(--muted);cursor:pointer" onclick="setCountry('ca')">CA</span>
+        <span style="font-size:14px">🇨🇦</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div>
+      <h1><span class="accent">Policy</span> Tracker</h1>
+      <div class="sub">Housing Policy · Rates · Markets · Promises — Economy Dashboard</div>
+    </div>
+    <div class="health-pill">
+      <div>
+        <div class="hp-label" id="hero-label">Housing Health Index (US)</div>
+        <div class="hp-val" id="hero-score">62.0</div>
+        <div class="hp-status" id="hero-status">● Affordability Crisis</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ① HOUSING METRICS KPIs ─────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title">Housing Metrics</div>
+    <div class="grid4" style="margin-bottom:14px">
+      <!-- Home Prices -->
+      <div class="stat-card">
+        <div class="sc-label">Median Home Price</div>
+        <div class="sc-val num" id="kpi-home">$413,500</div>
+        <div class="sc-target">Target: $385,000</div>
+        <div class="sc-change up" id="kpi-home-chg">▲ +7.4% vs target</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Mortgage Rate (30yr)</div>
+        <div class="sc-val num" id="kpi-rate">6.19%</div>
+        <div class="sc-target">Target: 4.33%</div>
+        <div class="sc-change up">▲ +1.86pp above target</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">FHFA Affordability Index</div>
+        <div class="sc-val num" id="kpi-afford">64.6</div>
+        <div class="sc-target">Target: 95</div>
+        <div class="sc-change up">▼ 32% below target</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">New Homes for Sale</div>
+        <div class="sc-val num">490K</div>
+        <div class="sc-target">Target: 550K+</div>
+        <div class="sc-change warn">▲ Improving slowly</div>
+      </div>
+    </div>
+
+    <!-- Full metrics table -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>KPI Detail — Target vs Current vs Start of Term</span>
+        <span id="metrics-updated" style="font-size:9px;color:var(--muted)">Live via FRED</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Target</th>
+              <th>Current</th>
+              <th>Start (Jan '25)</th>
+              <th>Yearly Chg</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="metrics-tbody">
+            <tr><td>Median Home Price</td><td class="num dim">$385,000</td><td class="num" id="mt-home">$413,500</td><td class="num dim">$407,500</td><td class="num bad">+1.5%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+            <tr><td>New Construction Median</td><td class="num dim">$401,800</td><td class="num">$413,500</td><td class="num dim">$427,500</td><td class="num good">−3.3%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+            <tr><td>Affordable Home Median</td><td class="num dim">$310,000</td><td class="num">$362,800</td><td class="num dim">$340,500</td><td class="num bad">+6.5%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+            <tr><td>Mortgage Rate (30yr)</td><td class="num dim">4.33%</td><td class="num" id="mt-rate">—</td><td class="num dim">7.07%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Partial</span></td></tr>
+            <tr><td>Fed Funds Rate</td><td class="num dim">3.88%</td><td class="num" id="mt-fed">—</td><td class="num dim">4.33%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>In progress</span></td></tr>
+            <tr><td>10yr Treasury Yield</td><td class="num dim">4.39%</td><td class="num" id="mt-t10">—</td><td class="num dim">4.63%</td><td class="num dim">—</td><td><span class="badge badge-gray"><span class="dot-gray"></span>Watch</span></td></tr>
+            <tr><td>Core Inflation Y/Y</td><td class="num dim">3.29%</td><td class="num" id="mt-cpi">—</td><td class="num dim">3.29%</td><td class="num dim">—</td><td><span class="badge badge-gray"><span class="dot-gray"></span>Watch</span></td></tr>
+            <tr><td>Median Mortgage P&amp;I</td><td class="num dim">$2,250</td><td class="num">$2,649</td><td class="num dim">$2,700</td><td class="num good">−1.9%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+            <tr><td>FHFA Affordability Index</td><td class="num dim">95</td><td class="num">64.6</td><td class="num dim">68</td><td class="num dim">−</td><td><span class="badge badge-red"><span class="dot-red"></span>Critical</span></td></tr>
+            <tr><td>Fannie Affordability Index</td><td class="num dim">125</td><td class="num">104.5</td><td class="num dim">100</td><td class="num warn">+4.5%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+            <tr><td>Median Household Income</td><td class="num dim">$80,610</td><td class="num">$83,730</td><td class="num dim">$80,610</td><td class="num good">+3.9%</td><td><span class="badge badge-green"><span class="dot-green"></span>On track</span></td></tr>
+            <tr><td>Bills in Congress</td><td class="num dim">Ideally anything</td><td class="num">0 passed</td><td class="num dim">0</td><td class="num dim">—</td><td><span class="badge badge-red"><span class="dot-red"></span>Stalled</span></td></tr>
+            <tr><td>Total Homes for Sale</td><td class="num dim">2,502,500</td><td class="num">1,180,001</td><td class="num dim">829,376</td><td class="num good">+42%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Rising</span></td></tr>
+            <tr><td>Construction on Site</td><td class="num dim">550,000</td><td class="num">490,000</td><td class="num dim">456,000</td><td class="num good">+7.5%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Rising</span></td></tr>
+            <tr><td>Homes for Sale (total)</td><td class="num dim">2,000,500</td><td class="num">619,001</td><td class="num dim">333,376</td><td class="num bad">+85%</td><td><span class="badge badge-red"><span class="dot-red"></span>Far below</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-source">Sources: FRED, NAR, FHFA, Census Bureau</div>
+    </div>
+  </div>
+
+  <!-- ② AFFORDABILITY BY REGION ──────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title" id="region-title">Affordability by Region</div>
+    <div class="region-grid" id="region-grid">
+      <div class="region-card">
+        <div class="region-name" style="color:#6ba3f5">North East</div>
+        <div class="region-row"><span class="rl">Resale Median $</span><span class="rv num">$552,100</span></div>
+        <div class="region-row"><span class="rl">Qualifying Income</span><span class="rv num">$136,368</span></div>
+        <div class="region-row"><span class="rl">Family Income</span><span class="rv num">$115,443</span></div>
+        <div class="region-row"><span class="rl">Mortgage P&amp;I</span><span class="rv num">$2,841</span></div>
+        <div class="region-row"><span class="rl">Affordability Now</span><span class="rv num bad">92.7</span></div>
+        <div class="region-row"><span class="rl">Month Prior</span><span class="rv num dim">84.7</span></div>
+        <div class="region-row"><span class="rl">Last Year</span><span class="rv num dim">95.4</span></div>
+        <div class="region-row"><span class="rl">Yearly Change</span><span class="rv num bad">−2.8%</span></div>
+      </div>
+      <div class="region-card">
+        <div class="region-name" style="color:#4ade80">Midwest</div>
+        <div class="region-row"><span class="rl">Resale Median $</span><span class="rv num">$333,900</span></div>
+        <div class="region-row"><span class="rl">Qualifying Income</span><span class="rv num">$82,464</span></div>
+        <div class="region-row"><span class="rl">Family Income</span><span class="rv num">$103,209</span></div>
+        <div class="region-row"><span class="rl">Mortgage P&amp;I</span><span class="rv num">$1,718</span></div>
+        <div class="region-row"><span class="rl">Affordability Now</span><span class="rv num good">131.9</span></div>
+        <div class="region-row"><span class="rl">Month Prior</span><span class="rv num dim">125.2</span></div>
+        <div class="region-row"><span class="rl">Last Year</span><span class="rv num dim">135.2</span></div>
+        <div class="region-row"><span class="rl">Yearly Change</span><span class="rv num bad">−2.8%</span></div>
+      </div>
+      <div class="region-card">
+        <div class="region-name" style="color:#f5c518">South</div>
+        <div class="region-row"><span class="rl">Resale Median $</span><span class="rv num">$371,300</span></div>
+        <div class="region-row"><span class="rl">Qualifying Income</span><span class="rv num">$91,692</span></div>
+        <div class="region-row"><span class="rl">Family Income</span><span class="rv num">$103,209</span></div>
+        <div class="region-row"><span class="rl">Mortgage P&amp;I</span><span class="rv num">$1,911</span></div>
+        <div class="region-row"><span class="rl">Affordability Now</span><span class="rv num warn">119.4</span></div>
+        <div class="region-row"><span class="rl">Month Prior</span><span class="rv num dim">113.8</span></div>
+        <div class="region-row"><span class="rl">Last Year</span><span class="rv num dim">122.1</span></div>
+        <div class="region-row"><span class="rl">Yearly Change</span><span class="rv num bad">0.6%</span></div>
+      </div>
+      <div class="region-card">
+        <div class="region-name" style="color:#f07030">West</div>
+        <div class="region-row"><span class="rl">Resale Median $</span><span class="rv num">$606,600</span></div>
+        <div class="region-row"><span class="rl">Qualifying Income</span><span class="rv num">$150,004</span></div>
+        <div class="region-row"><span class="rl">Family Income</span><span class="rv num">$157,248</span></div>
+        <div class="region-row"><span class="rl">Mortgage P&amp;I</span><span class="rv num">$3,276</span></div>
+        <div class="region-row"><span class="rl">Affordability Now</span><span class="rv num bad">75</span></div>
+        <div class="region-row"><span class="rl">Month Prior</span><span class="rv num dim">72.1</span></div>
+        <div class="region-row"><span class="rl">Last Year</span><span class="rv num dim">78.4</span></div>
+        <div class="region-row"><span class="rl">Yearly Change</span><span class="rv num bad">5.6%</span></div>
+      </div>
+    </div>
+    <div class="data-source">Source: NAR Housing Affordability Index, Q1 2025</div>
+  </div>
+
+  <!-- ③ PROMISE / BILL TRACKER ────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title" id="bills-title">Housing Bills in Congress</div>
+    <div class="panel">
+      <div class="panel-head"><span>Active &amp; Pending Legislation — Housing Affordability</span><span>0 passed · 7 active</span></div>
+      <div style="overflow-x:auto">
+        <table class="data-table promise-row">
+          <thead>
+            <tr><th>Bill</th><th style="text-align:left">Name</th><th style="text-align:left">Status</th><th>Committee</th><th>Impact</th></tr>
+          </thead>
+          <tbody id="bills-tbody">
+            <tr>
+              <td><span class="bill-num">HR 2945 (US)</span></td>
+              <td style="text-align:left; color:var(--text)">Housing Affordability Act</td>
+              <td style="text-align:left"><span class="badge badge-yellow"><span class="dot-yellow"></span>Ways &amp; Means Comm.</span></td>
+              <td style="text-align:left" class="dim">Ways &amp; Means</td>
+              <td><span class="badge badge-green">High</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">HR 2725 (US)</span></td>
+              <td style="text-align:left; color:var(--text)">Federal Housing Finance Reform</td>
+              <td style="text-align:left"><span class="badge badge-blue"><span class="dot-gray"></span>"Help &amp; Hinder" Comm.</span></td>
+              <td style="text-align:left" class="dim">Fin. Services</td>
+              <td><span class="badge badge-green">High</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">SB 79 (CA)</span></td>
+              <td style="text-align:left; color:var(--text)">California Zoning Reform</td>
+              <td style="text-align:left"><span class="badge badge-yellow"><span class="dot-yellow"></span>Senate Fin. Comm.</span></td>
+              <td style="text-align:left" class="dim">CA Senate</td>
+              <td><span class="badge badge-blue">Regional</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">S 934 (US)</span></td>
+              <td style="text-align:left; color:var(--text)">Reduce Permitting Barriers Act</td>
+              <td style="text-align:left"><span class="badge badge-yellow"><span class="dot-yellow"></span>Recently Introduced</span></td>
+              <td style="text-align:left" class="dim">Senate Banking</td>
+              <td><span class="badge badge-green">High</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">HR (tbd) (US)</span></td>
+              <td style="text-align:left; color:var(--text)">Trump Housing EO Implementation</td>
+              <td style="text-align:left"><span class="badge badge-yellow"><span class="dot-yellow"></span>Recently Introduced</span></td>
+              <td style="text-align:left" class="dim">T.B.D.</td>
+              <td><span class="badge badge-green">High</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">HR 2710 (US)</span></td>
+              <td style="text-align:left; color:var(--text)">Opportunity Zones Expansion</td>
+              <td style="text-align:left"><span class="badge badge-gray"><span class="dot-gray"></span>Referred to Comm.</span></td>
+              <td style="text-align:left" class="dim">Ways &amp; Means</td>
+              <td><span class="badge badge-yellow">Medium</span></td>
+            </tr>
+            <tr>
+              <td><span class="bill-num">HR 1948 (US)</span></td>
+              <td style="text-align:left; color:var(--text)">First-Time Homebuyer Tax Credit</td>
+              <td style="text-align:left"><span class="badge badge-gray"><span class="dot-gray"></span>Referred to Comm.</span></td>
+              <td style="text-align:left" class="dim">Ways &amp; Means</td>
+              <td><span class="badge badge-green">High</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-source">Source: congress.gov — updated weekly</div>
+    </div>
+  </div>
+
+  <!-- ④ AGENDA 47 TRACKER ─────────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title" id="promises-title">Agenda 47 — Housing Promises</div>
+    <div class="agenda-grid" id="agenda-grid">
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Open federal land for housing construction</div>
+          <span class="badge badge-yellow"><span class="dot-yellow"></span>EO Signed</span>
+        </div>
+        <div class="agenda-meta">Executive Order — Jan 2025 · Awaiting implementation</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:25%;background:var(--yellow)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Cut red tape &amp; permitting delays to build faster</div>
+          <span class="badge badge-yellow"><span class="dot-yellow"></span>In Progress</span>
+        </div>
+        <div class="agenda-meta">Deregulation push — HR (tbd) in progress · no timeline</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:20%;background:var(--yellow)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Bring mortgage rates down by cutting inflation</div>
+          <span class="badge badge-yellow"><span class="dot-yellow"></span>Partial</span>
+        </div>
+        <div class="agenda-meta">Rates: 7.07% → 6.19% · Target 4.33% · Still far off</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:40%;background:var(--orange)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Eliminate DEI in housing finance (FHFA reform)</div>
+          <span class="badge badge-green"><span class="dot-green"></span>Done</span>
+        </div>
+        <div class="agenda-meta">FHFA director replaced · DEI programs eliminated Jan 2025</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">End zoning overreach &amp; restore local control</div>
+          <span class="badge badge-yellow"><span class="dot-yellow"></span>EO Signed</span>
+        </div>
+        <div class="agenda-meta">Reversed Biden-era AFFH rule · Congress bill pending</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:60%;background:var(--yellow)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">First-time homebuyer tax credit &amp; down payment help</div>
+          <span class="badge badge-red"><span class="dot-red"></span>Stalled</span>
+        </div>
+        <div class="agenda-meta">HR 1948 in committee · no movement in 90 days</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:10%;background:var(--red)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Opportunity Zones 2.0 — incentivize private building</div>
+          <span class="badge badge-gray"><span class="dot-gray"></span>Introduced</span>
+        </div>
+        <div class="agenda-meta">HR 2710 referred to Ways &amp; Means · early stage</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:15%;background:var(--muted)"></div></div></div>
+      </div>
+      <div class="agenda-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="agenda-title">Deportation of undocumented — labour impact on construction</div>
+          <span class="badge badge-red"><span class="dot-red"></span>Concern</span>
+        </div>
+        <div class="agenda-meta">Construction labour 30% immigrant workforce · cost risk</div>
+        <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:70%;background:var(--red)"></div></div></div>
+      </div>
+    </div>
+    <div class="data-source">Source: Agenda47.com, WhiteHouse.gov, congress.gov</div>
+  </div>
+
+  <!-- ⑤ ECONOMIC INDEX ────────────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title">Economic Index</div>
+    <div class="econ-grid">
+      <div class="econ-score-box">
+        <div class="sc-label">Economic Health</div>
+        <div class="econ-score-val" id="econ-score" style="color:var(--orange)">62.9</div>
+        <div class="econ-score-label" id="econ-label" style="color:var(--orange)">Under Construction</div>
+        <div style="margin-top:12px; font-size:10px; color:var(--muted)">Housing Health</div>
+        <div class="econ-score-val" style="font-size:36px; color:var(--red)">62.0</div>
+        <div style="font-size:10px; color:var(--red); margin-top:2px">Affordability Crisis</div>
+      </div>
+      <div class="econ-indicators panel" style="padding:0">
+        <div class="panel-head"><span>Economic Indicators</span><span id="econ-src">FRED · BLS · Treasury</span></div>
+        <div class="panel-body" style="padding:8px 14px">
+          <div id="econ-rows">
+            <!-- Dynamically filled -->
+            <div class="econ-row">
+              <span class="econ-name">Unemployment Rate</span>
+              <span class="econ-val num good" id="econ-unemp">4.0%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" id="econ-unemp-bar" style="width:40%;background:var(--green)"></div></div>
+              <span class="badge badge-green risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">FHA Mortgage Delinquency</span>
+              <span class="econ-val num warn" id="econ-delinq">10.68%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:75%;background:var(--orange)"></div></div>
+              <span class="badge badge-yellow risk-pill">Elevated</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Total Mortgage Delinquency</span>
+              <span class="econ-val num good" id="econ-tot-delinq">1.78%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:20%;background:var(--green)"></div></div>
+              <span class="badge badge-green risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Total Housing Supply</span>
+              <span class="econ-val num warn" id="econ-supply">11,008</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:55%;background:var(--yellow)"></div></div>
+              <span class="badge badge-yellow risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Homeowner Vacancy Rate</span>
+              <span class="econ-val num good" id="econ-vacancy">1.0%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:15%;background:var(--green)"></div></div>
+              <span class="badge badge-green risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Foreclosure Rate</span>
+              <span class="econ-val num good" id="econ-fore">1.32%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:18%;background:var(--green)"></div></div>
+              <span class="badge badge-green risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">% Income Homeowners</span>
+              <span class="econ-val num" id="econ-inc-own">1.41%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:25%;background:var(--green)"></div></div>
+              <span class="badge badge-green risk-pill">Low Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Mortgage Rate (30yr)</span>
+              <span class="econ-val num warn" id="econ-mort">6.19%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:62%;background:var(--orange)"></div></div>
+              <span class="badge badge-yellow risk-pill">Moderate Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Business Loan Defaults</span>
+              <span class="econ-val num warn" id="econ-bizloan">3.50%</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:45%;background:var(--yellow)"></div></div>
+              <span class="badge badge-yellow risk-pill">Moderate Risk</span>
+            </div>
+            <div class="econ-row">
+              <span class="econ-name">Consumer Confidence</span>
+              <span class="econ-val num bad" id="econ-conf">7,231,808</span>
+              <div class="econ-bar-track"><div class="econ-bar-fill" style="width:88%;background:var(--red)"></div></div>
+              <span class="badge badge-red risk-pill">Moderate Risk</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="data-source">Sources: FRED, BLS, MBA, Census Bureau · Updated monthly</div>
+  </div>
+
+  <!-- ⑥ INVESTMENT TRACKER ────────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title">Investment Tracker</div>
+    <div class="grid2">
+      <!-- Commodities & Crypto -->
+      <div class="panel">
+        <div class="panel-head"><span>Commodities &amp; Crypto</span><span id="inv-updated">Live prices</span></div>
+        <table class="data-table">
+          <thead><tr><th>Asset</th><th>Price</th><th>1D %</th><th>1W %</th><th>1M %</th></tr></thead>
+          <tbody id="inv-commodities">
+            <tr><td><span class="asset-icon">🥇</span>Gold</td><td class="num" id="gold-p">$3,180</td><td class="inv-change-up" id="gold-d">▲ +0.8%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">🥈</span>Silver</td><td class="num" id="silv-p">$31.40</td><td class="inv-change-dn" id="silv-d">▼ −0.3%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">🪙</span>Platinum</td><td class="num" id="plat-p">$985</td><td class="inv-change-up" id="plat-d">▲ +0.2%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">📈</span>S&amp;P 500</td><td class="num" id="sp-p">5,614</td><td class="inv-change-dn" id="sp-d">▼ −0.5%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">📊</span>Dow Jones</td><td class="num" id="dj-p">41,820</td><td class="inv-change-dn" id="dj-d">▼ −0.4%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">₿</span>Bitcoin</td><td class="num" id="btc-p">$84,200</td><td class="inv-change-up" id="btc-d">▲ +1.2%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">Ξ</span>Ethereum</td><td class="num" id="eth-p">$1,920</td><td class="inv-change-dn" id="eth-d">▼ −0.8%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">✕</span>XRP</td><td class="num" id="xrp-p">$2.18</td><td class="inv-change-up" id="xrp-d">▲ +2.1%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+          </tbody>
+        </table>
+        <div class="data-source">Prices delayed ~15min · CoinGecko · Yahoo Finance</div>
+      </div>
+
+      <!-- Treasury Bonds -->
+      <div class="panel">
+        <div class="panel-head"><span id="bonds-title">U.S. Treasury Yields</span><span id="bonds-source">Live via FRED</span></div>
+        <table class="data-table">
+          <thead><tr><th>Maturity</th><th>Yield</th><th>Change</th><th>Signal</th></tr></thead>
+          <tbody id="inv-bonds">
+            <tr><td>1 Year</td><td class="num" id="t1-y">4.28%</td><td class="inv-change-dn">▼ −0.02</td><td><span class="badge badge-green">Low Risk</span></td></tr>
+            <tr><td>2 Year</td><td class="num" id="t2-y">4.02%</td><td class="inv-change-dn">▼ −0.04</td><td><span class="badge badge-green">Low Risk</span></td></tr>
+            <tr><td>5 Year</td><td class="num" id="t5-y">4.18%</td><td class="inv-change-dn">▼ −0.03</td><td><span class="badge badge-yellow">Watch</span></td></tr>
+            <tr><td>10 Year</td><td class="num" id="t10-y">4.32%</td><td class="inv-change-dn">▼ −0.01</td><td><span class="badge badge-yellow">Watch</span></td></tr>
+            <tr><td>20 Year</td><td class="num" id="t20-y">4.68%</td><td class="num dim">—</td><td><span class="badge badge-gray">Neutral</span></td></tr>
+            <tr><td>30 Year</td><td class="num" id="t30-y">4.76%</td><td class="inv-change-up">▲ +0.02</td><td><span class="badge badge-yellow">Watch</span></td></tr>
+          </tbody>
+        </table>
+        <div style="padding:10px 14px">
+          <div id="yield-curve-note" style="font-size:11px; padding:8px 12px; border-radius:4px; background:var(--green-dim); color:#4ade80; border:1px solid rgba(29,185,116,.3)">
+            ✓ Yield curve normal — 10yr (4.32%) &gt; 2yr (4.02%) · Spread: +0.30%
+          </div>
+        </div>
+        <div class="data-source">Source: FRED / U.S. Treasury</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ COST OF LIVING TRACKER ────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title" id="col-title">Cost of Living Tracker — United States</div>
+    <div style="margin-bottom:10px;font-size:11px;color:var(--muted)">Key consumer prices — tracked against pre-tariff baseline (Jan 2025)</div>
+    <div class="col-grid" id="col-grid">
+      <!-- Housing -->
+      <div class="col-card">
+        <div class="col-name">🏠 Sewer / Water (mo)</div>
+        <div class="col-price num">$80</div>
+        <div class="col-change bad">▲ +2.1% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🚌 Public Transit Fares</div>
+        <div class="col-price num">$120/mo</div>
+        <div class="col-change bad">▲ +4.3% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🛋 Furniture Index</div>
+        <div class="col-price num">+8.2%</div>
+        <div class="col-change bad">▲ tariff impact</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🧹 Cleaning Supplies</div>
+        <div class="col-price num">$28/mo</div>
+        <div class="col-change bad">▲ +3.8% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">📺 Cable / Streaming</div>
+        <div class="col-price num">$58/mo</div>
+        <div class="col-change bad">▲ +6.2% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🌐 Internet (avg)</div>
+        <div class="col-price num">$68/mo</div>
+        <div class="col-change warn">▲ +1.9% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🍽 Food Away / mo</div>
+        <div class="col-price num">$389/mo</div>
+        <div class="col-change bad">▲ +5.4% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">💄 Personal Care</div>
+        <div class="col-price num">$36/mo</div>
+        <div class="col-change bad">▲ +4.1% YoY</div>
+      </div>
+      <!-- Groceries -->
+      <div class="col-card">
+        <div class="col-name">🌾 Rice (per lb)</div>
+        <div class="col-price num">$1.14</div>
+        <div class="col-change bad">▲ +3.2% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🌾 White Flour (per lb)</div>
+        <div class="col-price num">$0.62</div>
+        <div class="col-change good">▼ −1.1% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🥩 Ground Beef (per lb)</div>
+        <div class="col-price num">$5.48</div>
+        <div class="col-change bad">▲ +8.7% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">☕ Coffee (per lb)</div>
+        <div class="col-price num">$7.12</div>
+        <div class="col-change bad">▲ +18.4% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🍅 Tomatoes (per lb)</div>
+        <div class="col-price num">$1.94</div>
+        <div class="col-change bad">▲ +12.1% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🍌 Bananas (per lb)</div>
+        <div class="col-price num">$0.59</div>
+        <div class="col-change warn">▲ +2.2% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🥔 Potatoes (per lb)</div>
+        <div class="col-price num">$0.84</div>
+        <div class="col-change good">▼ −0.8% YoY</div>
+      </div>
+      <div class="col-card">
+        <div class="col-name">🥚 Eggs (dozen)</div>
+        <div class="col-price num bad">$5.90</div>
+        <div class="col-change bad">▲ +82% YoY</div>
+      </div>
+    </div>
+    <div class="data-source">Source: BLS CPI Detailed Report, USDA ERS · Updated monthly</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid var(--border); padding-top:20px; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px">
+    <div>Policy Tracker · Part of Housing Tracker</div>
+    <div>Data: FRED · BLS · NAR · Congress.gov · CoinGecko · Updated live where available</div>
+  </div>
+
+</div><!-- end wrap -->
+
+<script>
+// ── Country state ─────────────────────────────────────────────────────────────
+let country = localStorage.getItem('ht-country') || 'us';
+
+function toggleCountry() {
+  setCountry(country === 'us' ? 'ca' : 'us');
+}
+function setCountry(c) {
+  country = c;
+  localStorage.setItem('ht-country', c);
+  document.getElementById('lbl-us').style.color = c === 'us' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('lbl-us').style.fontWeight = c === 'us' ? '600' : '400';
+  document.getElementById('lbl-ca').style.color = c === 'ca' ? 'var(--text)' : 'var(--muted)';
+  document.getElementById('lbl-ca').style.fontWeight = c === 'ca' ? '600' : '400';
+  const thumb = document.getElementById('sw-thumb');
+  thumb.style.transform = c === 'ca' ? 'translateX(16px)' : 'translateX(0)';
+  thumb.style.background = c === 'ca' ? 'var(--green)' : 'var(--red)';
+  renderCountryData(c);
+}
+
+// ── All country data ──────────────────────────────────────────────────────────
+const DATA = {
+  us: {
+    heroLabel: 'Housing Health Index (US)',
+    regionTitle: 'Affordability by Region — United States',
+    regions: [
+      { name:'North East', color:'#6ba3f5', median:'$552,100', qualify:'$136,368', income:'$115,443', pandi:'$2,841', afford:'92.7', change:'−2.8%', changeClass:'bad' },
+      { name:'Midwest',    color:'#4ade80', median:'$333,900', qualify:'$82,464',  income:'$103,209', pandi:'$1,718', afford:'131.9',change:'+0.6%', changeClass:'good' },
+      { name:'South',      color:'#f5c518', median:'$371,300', qualify:'$91,692',  income:'$103,209', pandi:'$1,911', afford:'119.4',change:'−2.8%', changeClass:'bad' },
+      { name:'West',       color:'#f07030', median:'$606,600', qualify:'$150,004', income:'$157,248', pandi:'$3,276', afford:'75',   change:'+5.6%', changeClass:'bad' },
+    ],
+    billsTitle: 'Housing Bills in Congress — United States',
+    bills: [
+      { num:'HR 2945', name:'Housing Affordability Act', status:'Ways & Means Comm.', statusClass:'badge-yellow', impact:'High' },
+      { num:'HR 2725', name:'Federal Housing Finance Reform', status:'"Help & Hinder" Comm.', statusClass:'badge-blue', impact:'High' },
+      { num:'SB 79 (CA)', name:'California Zoning Reform', status:'Senate Fin. Comm.', statusClass:'badge-yellow', impact:'Regional' },
+      { num:'S 934', name:'Reduce Permitting Barriers Act', status:'Recently Introduced', statusClass:'badge-yellow', impact:'High' },
+      { num:'HR (tbd)', name:'Trump Housing EO Implementation', status:'Recently Introduced', statusClass:'badge-yellow', impact:'High' },
+      { num:'HR 2710', name:'Opportunity Zones Expansion', status:'Referred to Comm.', statusClass:'badge-gray', impact:'Medium' },
+      { num:'HR 1948', name:'First-Time Homebuyer Tax Credit', status:'Referred to Comm.', statusClass:'badge-gray', impact:'High' },
+    ],
+    promises: [
+      { title:'Open federal land for housing construction', status:'EO Signed', statusClass:'badge-yellow', pct:25, color:'var(--yellow)', meta:'Executive Order — Jan 2025 · Awaiting implementation' },
+      { title:'Cut red tape & permitting delays to build faster', status:'In Progress', statusClass:'badge-yellow', pct:20, color:'var(--yellow)', meta:'Deregulation push — HR (tbd) in progress · no timeline' },
+      { title:'Bring mortgage rates down by cutting inflation', status:'Partial', statusClass:'badge-yellow', pct:40, color:'var(--orange)', meta:'Rates: 7.07% → 6.19% · Target 4.33% · Still far off' },
+      { title:'Eliminate DEI in housing finance (FHFA reform)', status:'Done', statusClass:'badge-green', pct:100, color:'var(--green)', meta:'FHFA director replaced · DEI programs eliminated Jan 2025' },
+      { title:'End zoning overreach & restore local control', status:'EO Signed', statusClass:'badge-yellow', pct:60, color:'var(--yellow)', meta:'Reversed Biden-era AFFH rule · Congress bill pending' },
+      { title:'First-time homebuyer tax credit & down payment help', status:'Stalled', statusClass:'badge-red', pct:10, color:'var(--red)', meta:'HR 1948 in committee · no movement in 90 days' },
+      { title:'Opportunity Zones 2.0 — incentivize private building', status:'Introduced', statusClass:'badge-gray', pct:15, color:'var(--muted)', meta:'HR 2710 referred to Ways & Means · early stage' },
+      { title:'Deportation of undocumented — labour impact on construction', status:'Concern', statusClass:'badge-red', pct:70, color:'var(--red)', meta:'Construction labour 30% immigrant workforce · cost risk' },
+    ],
+    bonds: { label:'U.S. Treasury Yields', source:'FRED / U.S. Treasury',
+      rows:[ ['1 Year','t1-y','4.28%'], ['2 Year','t2-y','4.02%'], ['5 Year','t5-y','4.18%'], ['10 Year','t10-y','4.32%'], ['20 Year','t20-y','4.68%'], ['30 Year','t30-y','4.76%'] ] },
+    colTitle: 'Cost of Living — United States (USD)',
+    colCurrency: '$',
+  },
+  ca: {
+    heroLabel: 'Housing Health Index (CA)',
+    regionTitle: 'Affordability by Region — Canada',
+    regions: [
+      { name:'BC',       color:'#6ba3f5', median:'$1,024,000', qualify:'$253,000', income:'$102,000', pandi:'$5,267', afford:'40.3', change:'+1.2%', changeClass:'bad' },
+      { name:'Ontario',  color:'#f07030', median:'$868,000',  qualify:'$214,400', income:'$98,000',  pandi:'$4,462', afford:'45.7', change:'−1.8%', changeClass:'warn' },
+      { name:'Prairies', color:'#4ade80', median:'$398,000',  qualify:'$98,400',  income:'$96,000',  pandi:'$2,045', afford:'97.5', change:'+3.1%', changeClass:'bad' },
+      { name:'Atlantic', color:'#f5c518', median:'$376,000',  qualify:'$92,900',  income:'$84,000',  pandi:'$1,932', afford:'90.4', change:'+4.6%', changeClass:'bad' },
+    ],
+    billsTitle: 'Housing Legislation — Canada',
+    bills: [
+      { num:'Bill C-5', name:'Housing Accelerator Fund Expansion', status:'Royal Assent', statusClass:'badge-green', impact:'High' },
+      { num:'Budget 2024', name:'$6B Canada Housing Infrastructure', status:'Approved', statusClass:'badge-green', impact:'High' },
+      { num:'Bill C-56', name:'Affordable Housing & Groceries Act', status:'Passed', statusClass:'badge-green', impact:'High' },
+      { num:'CMHC Reform', name:'MLI Select — Purpose-built rental', status:'Active', statusClass:'badge-blue', impact:'High' },
+      { num:'Bill C-59', name:'GST Removal on New Rental Housing', status:'Passed', statusClass:'badge-green', impact:'Medium' },
+      { num:'HAF Agreements', name:'Municipal Zoning Reform Deals', status:'88 signed', statusClass:'badge-yellow', impact:'High' },
+      { num:'NBP', name:'National Building Plan — 3.87M homes by 2031', status:'In Progress', statusClass:'badge-yellow', impact:'Critical' },
+    ],
+    promises: [
+      { title:'Build 3.87 million homes by 2031 (National Building Plan)', status:'In Progress', statusClass:'badge-yellow', pct:18, color:'var(--yellow)', meta:'~250K/yr needed · 2024 completions: ~240K · slightly behind' },
+      { title:'Remove GST on all new rental housing', status:'Done', statusClass:'badge-green', pct:100, color:'var(--green)', meta:'Bill C-59 passed · applies to purpose-built rentals' },
+      { title:'Housing Accelerator Fund — fast-track municipal zoning', status:'Active', statusClass:'badge-green', pct:75, color:'var(--green)', meta:'88 agreements signed · $4B deployed · cities rezoning' },
+      { title:'Ban foreign buyers for 3 years', status:'Done', statusClass:'badge-green', pct:100, color:'var(--green)', meta:'Foreign Buyers Ban extended to Jan 2027' },
+      { title:'Canada Builds — co-investment with provinces', status:'Partial', statusClass:'badge-yellow', pct:40, color:'var(--yellow)', meta:'BC, ON, AB agreements signed · others pending' },
+      { title:'$6B Canada Housing Infrastructure Fund', status:'Deploying', statusClass:'badge-yellow', pct:30, color:'var(--yellow)', meta:'Budget 2024 · municipal applications open' },
+      { title:'30-year amortizations for insured mortgages (first-time buyers)', status:'Done', statusClass:'badge-green', pct:100, color:'var(--green)', meta:'Effective Aug 2024 · applies to new builds' },
+      { title:'Raise CMHC insured mortgage cap to $1.5M', status:'Done', statusClass:'badge-green', pct:100, color:'var(--green)', meta:'Effective Dec 2024 · helps high-cost markets' },
+    ],
+    bonds: { label:'GoC Bond Yields (Canada)', source:'Bank of Canada',
+      rows:[ ['2 Year','t2-y','3.48%'], ['3 Year','t5-y','3.52%'], ['5 Year','t10-y','3.68%'], ['10 Year','t20-y','3.94%'], ['30 Year','t30-y','4.12%'] ] },
+    colTitle: 'Cost of Living — Canada (CAD)',
+    colCurrency: 'C$',
+  }
+};
+
+function renderCountryData(c) {
+  const d = DATA[c];
+
+  // Hero label
+  document.getElementById('hero-label').textContent = d.heroLabel;
+
+  // Regions
+  document.getElementById('region-title').textContent = d.regionTitle;
+  document.getElementById('region-grid').innerHTML = d.regions.map(r => `
+    <div class="region-card">
+      <div class="region-name" style="color:${r.color}">${r.name}</div>
+      <div class="region-row"><span class="rl">Resale Median</span><span class="rv num">${r.median}</span></div>
+      <div class="region-row"><span class="rl">Qualifying Income</span><span class="rv num">${r.qualify}</span></div>
+      <div class="region-row"><span class="rl">Family Income</span><span class="rv num">${r.income}</span></div>
+      <div class="region-row"><span class="rl">Mortgage P&I</span><span class="rv num">${r.pandi}</span></div>
+      <div class="region-row"><span class="rl">Affordability</span><span class="rv num ${r.afford < 80 ? 'bad' : r.afford < 100 ? 'warn' : 'good'}">${r.afford}</span></div>
+      <div class="region-row"><span class="rl">Yearly Change</span><span class="rv num ${r.changeClass}">${r.change}</span></div>
+    </div>`).join('');
+
+  // Bills
+  document.getElementById('bills-title').textContent = d.billsTitle;
+  document.getElementById('bills-tbody').innerHTML = d.bills.map(b => `
+    <tr>
+      <td><span class="bill-num">${b.num}</span></td>
+      <td style="text-align:left;color:var(--text)">${b.name}</td>
+      <td style="text-align:left"><span class="badge ${b.statusClass}">${b.status}</span></td>
+      <td><span class="badge ${b.impact === 'High' || b.impact === 'Critical' ? 'badge-green' : b.impact === 'Medium' ? 'badge-yellow' : 'badge-blue'}">${b.impact}</span></td>
+    </tr>`).join('');
+
+  // Promises
+  document.getElementById('promises-title').textContent = c === 'ca' ? 'Canadian Housing Promises' : 'Agenda 47 — Housing Promises';
+  document.getElementById('agenda-grid').innerHTML = d.promises.map(p => `
+    <div class="agenda-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="agenda-title">${p.title}</div>
+        <span class="badge ${p.statusClass}" style="flex-shrink:0;margin-left:8px">${p.status}</span>
+      </div>
+      <div class="agenda-meta">${p.meta}</div>
+      <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:${p.pct}%;background:${p.color}"></div></div></div>
+    </div>`).join('');
+
+  // Bonds label
+  document.getElementById('bonds-title').textContent = d.bonds.label;
+  document.getElementById('bonds-source').textContent = d.bonds.source;
+
+  // Cost of living title
+  document.getElementById('col-title').textContent = d.colTitle;
+
+  // Fetch live scores for selected country
+  fetchLiveRates(c);
+}
+
+// ── Live data fetch via FRED (same API as main tracker) ──────────────────────
+async function fetchLiveRates(c) {
+  c = c || country;
+  try {
+    const r = await fetch('/api/scores');
+    if (!r.ok) return;
+    const j = await r.json();
+
+    const isCA = c === 'ca';
+    const rUS = (isCA ? j.ratesCA : j.ratesUS)?.rates || {};
+    const infl = (isCA ? j.ratesCA : j.ratesUS)?.inflation || {};
+
+    // Update KPI cards
+    if (rUS.mort30?.value) {
+      const v = rUS.mort30.value.toFixed(2) + '%';
+      document.getElementById('kpi-rate').textContent = v;
+      document.getElementById('mt-rate').textContent = v;
+      document.getElementById('econ-mort').textContent = v;
+    }
+    if (rUS.fedFunds?.value) {
+      document.getElementById('mt-fed').textContent = rUS.fedFunds.value.toFixed(2) + '%';
+    }
+    if (rUS.t10y?.value) {
+      const v = rUS.t10y.value.toFixed(2) + '%';
+      document.getElementById('mt-t10').textContent = v;
+      document.getElementById('t10-y').textContent = v;
+    }
+    if (rUS.t2y?.value)  document.getElementById('t2-y').textContent  = rUS.t2y.value.toFixed(2) + '%';
+    if (rUS.t5y?.value)  document.getElementById('t5-y').textContent  = rUS.t5y.value.toFixed(2) + '%';
+    if (rUS.t30y?.value) document.getElementById('t30-y').textContent = rUS.t30y.value.toFixed(2) + '%';
+
+    if (infl.cpi?.value) {
+      document.getElementById('mt-cpi').textContent = infl.cpi.value.toFixed(2) + '%';
+    }
+
+    // Yield curve
+    const t2 = rUS.t2y?.value, t10 = rUS.t10y?.value;
+    if (t2 && t10) {
+      const spread = (t10 - t2).toFixed(2);
+      const el = document.getElementById('yield-curve-note');
+      if (t10 > t2) {
+        el.style.background = 'var(--green-dim)';
+        el.style.color = '#4ade80';
+        el.style.borderColor = 'rgba(29,185,116,.3)';
+        el.textContent = `✓ Yield curve normal — 10yr (${t10.toFixed(2)}%) > 2yr (${t2.toFixed(2)}%) · Spread: +${spread}%`;
+      } else {
+        el.style.background = 'var(--red-dim)';
+        el.style.color = '#ff6b6b';
+        el.style.borderColor = 'rgba(229,57,53,.3)';
+        el.textContent = `⚠ Yield curve inverted — 2yr (${t2.toFixed(2)}%) > 10yr (${t10.toFixed(2)}%) · Spread: ${spread}%`;
+      }
+    }
+
+    // National scores
+    const d = j.us;
+    if (d) {
+      document.getElementById('hero-score').textContent = d.health.toFixed(1);
+      const healthLabel = d.health >= 85 ? 'Affordable Housing' : d.health >= 72.5 ? "Buyer's Market" : d.health >= 60 ? 'Neutral Market' : d.health >= 50 ? 'Affordability Crisis' : d.health >= 40 ? 'Nowhere Close' : 'Crisis Mode';
+      const healthColor = d.health >= 72 ? '#1db974' : d.health >= 60 ? '#f5c518' : d.health >= 50 ? '#f07030' : '#e53935';
+      document.getElementById('hero-score').style.color = healthColor;
+      document.getElementById('hero-status').textContent = '● ' + healthLabel;
+      document.getElementById('hero-status').style.color = healthColor;
+    }
+
+    document.getElementById('last-updated').textContent =
+      'Updated: ' + new Date().toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  } catch(e) {
+    document.getElementById('last-updated').textContent = 'Live data unavailable — showing estimates';
+  }
+}
+
+// ── Crypto prices via CoinGecko (free, no key) ────────────────────────────────
+async function fetchCrypto() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd&include_24hr_change=true');
+    const j = await r.json();
+    if (j.bitcoin) {
+      document.getElementById('btc-p').textContent = '$' + j.bitcoin.usd.toLocaleString();
+      const btcChg = j.bitcoin.usd_24h_change?.toFixed(2);
+      const btcEl = document.getElementById('btc-d');
+      if (btcChg) {
+        btcEl.textContent = (btcChg >= 0 ? '▲ +' : '▼ ') + btcChg + '%';
+        btcEl.className = btcChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      }
+    }
+    if (j.ethereum) {
+      document.getElementById('eth-p').textContent = '$' + j.ethereum.usd.toLocaleString();
+      const ethChg = j.ethereum.usd_24h_change?.toFixed(2);
+      const ethEl = document.getElementById('eth-d');
+      if (ethChg) {
+        ethEl.textContent = (ethChg >= 0 ? '▲ +' : '▼ ') + ethChg + '%';
+        ethEl.className = ethChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      }
+    }
+    if (j.ripple) {
+      document.getElementById('xrp-p').textContent = '$' + j.ripple.usd.toFixed(3);
+      const xrpChg = j.ripple.usd_24h_change?.toFixed(2);
+      const xrpEl = document.getElementById('xrp-d');
+      if (xrpChg) {
+        xrpEl.textContent = (xrpChg >= 0 ? '▲ +' : '▼ ') + xrpChg + '%';
+        xrpEl.className = xrpChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      }
+    }
+  } catch { /* fallback values already shown */ }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setCountry(country);
+fetchCrypto();
+setInterval(fetchCrypto, 60000);   // refresh crypto every minute
+setInterval(fetchLiveRates, 3600000); // refresh FRED every hour
+</script>
+</body>
+</html>
