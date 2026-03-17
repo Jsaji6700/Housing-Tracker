@@ -829,9 +829,8 @@ body::before {
     </div>
 
     <div class="cal-tabs">
-      <button class="cal-tab active" onclick="loadCalendar('this')" id="tab-this">This Week</button>
-      <button class="cal-tab" onclick="loadCalendar('next')" id="tab-next">Next Week</button>
-      <span style="margin-left:auto;font-size:10px;color:var(--muted);font-family:var(--mono)" id="cal-source"></span>
+      <button class="cal-tab active" id="tab-this" style="cursor:default">This Week</button>
+      <span style="margin-left:auto;font-size:10px;font-family:var(--mono)" id="cal-source"></span>
     </div>
 
     <div class="panel">
@@ -1217,13 +1216,11 @@ setInterval(fetchLiveRates, 3600000); // refresh FRED every hour
 let calWeek = 'this';
 
 async function loadCalendar(week) {
-  calWeek = week;
-  document.getElementById('tab-this').classList.toggle('active', week === 'this');
-  document.getElementById('tab-next').classList.toggle('active', week === 'next');
+  calWeek = week || 'this';
   document.getElementById('cal-body').innerHTML = '<div class="cal-loading">Loading calendar…</div>';
 
   try {
-    const r = await fetch(`/api/calendar?week=${week}`);
+    const r = await fetch(`/api/calendar?week=this`);
     const j = await r.json();
 
     const srcEl = document.getElementById('cal-source');
@@ -1231,75 +1228,39 @@ async function loadCalendar(week) {
       srcEl.textContent = '✓ Live from ForexFactory';
       srcEl.style.color = 'var(--green)';
     } else {
-      srcEl.textContent = '⚠ Estimated events — ForexFactory blocked server-side';
+      srcEl.textContent = '⚠ Estimated — ForexFactory blocked server-side';
       srcEl.style.color = 'var(--yellow)';
     }
 
     if (!j.events || !j.events.length) {
       document.getElementById('cal-body').innerHTML =
-        '<div class="cal-empty">No high/medium impact USD or CAD events found for this period.</div>';
+        '<div class="cal-empty">No events this week — check back Monday.</div>';
       return;
     }
 
     renderCalendar(j.events);
   } catch(e) {
     document.getElementById('cal-body').innerHTML =
-      `<div class="cal-empty">Could not load calendar — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">view on ForexFactory ↗</a></div>`;
+      `<div class="cal-empty">Could not load — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">ForexFactory ↗</a></div>`;
   }
 }
 
 function renderCalendar(events) {
-  // Group by day
+  // Determine "now" in ET (UTC-4 summer / UTC-5 winter — use UTC-5 as safe default)
+  const nowET = new Date(Date.now() - 5 * 3600000);
+  const todayStr = nowET.toISOString().split('T')[0];
+
+  // Group by date string
   const days = {};
   events.forEach(e => {
-    const d = formatCalDay(e.date);
-    if (!days[d]) days[d] = [];
-    days[d].push(e);
+    const key = e.date ? e.date.split('T')[0] : 'unknown';
+    if (!days[key]) days[key] = [];
+    days[key].push(e);
   });
 
-  const now = Date.now();
-
-  let html = '';
-  Object.entries(days).forEach(([day, evs]) => {
-    html += `<div class="cal-day-group">
-      <div class="cal-day-label">${day}</div>`;
-    evs.forEach(e => {
-      const flag   = e.currency === 'USD' ? '🇺🇸' : '🇨🇦';
-      const impDot = e.impact === 'High'
-        ? '<span class="impact-high"></span>'
-        : '<span class="impact-medium"></span>';
-      const timeStr = formatCalTime(e.time, e.date);
-      const isPast  = e.actual !== '';
-
-      // Color actual vs forecast
-      let actualHtml = '<span class="cal-num dim">—</span>';
-      if (e.actual) {
-        const actNum  = parseFloat(e.actual);
-        const foreNum = parseFloat(e.forecast);
-        let cls = 'cal-actual-neu';
-        if (!isNaN(actNum) && !isNaN(foreNum)) {
-          cls = actNum >= foreNum ? 'cal-actual-good' : 'cal-actual-bad';
-        }
-        actualHtml = `<span class="cal-num ${cls}">${e.actual}</span>`;
-      }
-
-      html += `
-        <div class="cal-row" style="${isPast ? 'opacity:.6' : ''}">
-          <span class="cal-time">${timeStr}</span>
-          <span class="cal-flag">${flag}</span>
-          <span class="cal-event">${impDot} ${e.title}</span>
-          <span class="cal-num dim">${e.forecast || '—'}</span>
-          <span class="cal-num dim">${e.previous || '—'}</span>
-          ${actualHtml}
-        </div>`;
-    });
-    html += '</div>';
-  });
-
-  // Add column headers
   const header = `
-    <div style="display:grid;grid-template-columns:70px 40px 1fr 90px 90px 90px;gap:8px;padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
-      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Time</span>
+    <div style="display:grid;grid-template-columns:80px 36px 1fr 80px 80px 80px;gap:8px;padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Time (ET)</span>
       <span></span>
       <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Event</span>
       <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right">Forecast</span>
@@ -1307,27 +1268,78 @@ function renderCalendar(events) {
       <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right">Actual</span>
     </div>`;
 
+  let html = '';
+  Object.entries(days).sort(([a],[b]) => a.localeCompare(b)).forEach(([dateKey, evs]) => {
+    const isPastDay = dateKey < todayStr;
+    const isTodayDay = dateKey === todayStr;
+
+    const dayLabel = formatCalDay(dateKey);
+    const dayTag = isPastDay
+      ? `<span style="font-size:9px;color:var(--muted2);margin-left:8px;font-family:var(--mono)">(past)</span>`
+      : isTodayDay
+        ? `<span style="font-size:9px;color:var(--green);margin-left:8px;font-family:var(--mono)">● today</span>`
+        : '';
+
+    html += `<div class="cal-day-group">
+      <div class="cal-day-label">${dayLabel}${dayTag}</div>`;
+
+    evs.forEach(e => {
+      const flag   = e.currency === 'USD' ? '🇺🇸' : '🇨🇦';
+      const cur    = e.currency === 'USD' ? 'US' : 'CA';
+      const impDot = e.impact === 'High'
+        ? '<span class="impact-high"></span>'
+        : '<span class="impact-medium"></span>';
+
+      // Styling: past day = off-white/dim, today/future = full white
+      const rowStyle = isPastDay
+        ? 'opacity:0.45; color:#7a8090;'
+        : 'color:var(--text);';
+
+      // Actual data coloring
+      let actualHtml = `<span class="cal-num" style="color:var(--muted2)">—</span>`;
+      if (e.actual && e.actual !== '') {
+        const actNum  = parseFloat(e.actual.replace('%','').replace('K','').replace('M',''));
+        const foreNum = parseFloat((e.forecast||'').replace('%','').replace('K','').replace('M',''));
+        let actColor = 'var(--text)';
+        if (!isNaN(actNum) && !isNaN(foreNum) && foreNum !== 0) {
+          actColor = actNum >= foreNum ? '#4ade80' : '#f87171';
+        }
+        actualHtml = `<span class="cal-num" style="color:${actColor};font-weight:600">${e.actual}</span>`;
+      }
+
+      const foreColor = isPastDay ? 'var(--muted2)' : 'var(--muted)';
+      const prevColor = isPastDay ? 'var(--muted2)' : 'var(--muted)';
+
+      html += `
+        <div class="cal-row" style="${rowStyle}">
+          <span class="cal-time" style="${isPastDay?'color:#3a4058':''}">${e.time||'All Day'}</span>
+          <span style="font-size:11px;font-weight:600;color:${isPastDay?'#3a4058':'var(--muted)'};">${cur}</span>
+          <span class="cal-event" style="${isPastDay?'color:#5a6278':''}">
+            ${impDot} ${e.title}
+          </span>
+          <span class="cal-num" style="text-align:right;color:${foreColor}">${e.forecast||'—'}</span>
+          <span class="cal-num" style="text-align:right;color:${prevColor}">${e.previous||'—'}</span>
+          ${actualHtml}
+        </div>`;
+    });
+    html += '</div>';
+  });
+
   document.getElementById('cal-body').innerHTML = header + html;
 }
 
 function formatCalDay(dateStr) {
   if (!dateStr) return 'Unknown';
   try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    // Parse as local date to avoid UTC shift
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   } catch { return dateStr; }
 }
 
-function formatCalTime(timeStr, dateStr) {
-  if (!timeStr || timeStr === 'All Day' || timeStr === '') return 'All Day';
-  try {
-    // FF times are in ET
-    return timeStr;
-  } catch { return timeStr; }
-}
-
 // Load on init
-loadCalendar('this');
+loadCalendar();
 
 </script>
 </body>
