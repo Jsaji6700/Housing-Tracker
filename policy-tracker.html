@@ -241,6 +241,45 @@ body::before {
 /* ── LAST UPDATED ── */
 .data-source { font-size: 10px; color: var(--muted2); margin-top: 6px; font-family: var(--mono); text-align: right; }
 
+
+/* ── CALENDAR TAB ── */
+.cal-tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.cal-tab {
+  background:none; border:1px solid var(--border); border-radius:999px;
+  padding:5px 14px; font-size:12px; color:var(--muted); cursor:pointer;
+  font-family:var(--sans); transition:all .15s;
+}
+.cal-tab:hover { border-color:var(--border2); color:var(--text); }
+.cal-tab.active { background:var(--s3); border-color:var(--border2); color:var(--text); }
+.cal-day-group { margin-bottom:16px; }
+.cal-day-label {
+  font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border);
+  margin-bottom:4px; font-family:var(--mono);
+}
+.cal-row {
+  display:grid; grid-template-columns:70px 40px 1fr 90px 90px 90px;
+  gap:8px; padding:9px 4px; border-bottom:1px solid var(--border);
+  align-items:center; transition:background .1s;
+}
+.cal-row:hover { background:rgba(255,255,255,.025); }
+.cal-row:last-child { border-bottom:none; }
+.cal-time { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.cal-flag { font-size:14px; }
+.cal-event { font-size:12px; color:var(--text); font-weight:500; line-height:1.3; }
+.cal-num { font-family:var(--mono); font-size:11px; text-align:right; }
+.cal-actual-good { color:var(--green); }
+.cal-actual-bad  { color:var(--red); }
+.cal-actual-neu  { color:var(--text); }
+.cal-empty { text-align:center; padding:40px; color:var(--muted); font-size:12px; }
+.impact-high   { width:8px; height:8px; border-radius:50%; background:var(--red);    flex-shrink:0; display:inline-block; }
+.impact-medium { width:8px; height:8px; border-radius:50%; background:var(--yellow); flex-shrink:0; display:inline-block; }
+.cal-loading { text-align:center; padding:32px; color:var(--muted); font-size:12px; }
+@media(max-width:600px) {
+  .cal-row { grid-template-columns:60px 30px 1fr 70px; }
+  .cal-row .cal-num:nth-child(5), .cal-row .cal-num:nth-child(6) { display:none; }
+}
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -781,6 +820,35 @@ body::before {
     <div class="data-source">Source: BLS CPI Detailed Report, USDA ERS · Updated monthly</div>
   </div>
 
+
+  <!-- ⑧ ECONOMIC CALENDAR ─────────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title">Economic Calendar</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+      High &amp; medium impact events for 🇺🇸 USD and 🇨🇦 CAD — sourced from Forex Factory
+    </div>
+
+    <div class="cal-tabs">
+      <button class="cal-tab active" onclick="loadCalendar('this')" id="tab-this">This Week</button>
+      <button class="cal-tab" onclick="loadCalendar('next')" id="tab-next">Next Week</button>
+      <span style="margin-left:auto;font-size:10px;color:var(--muted);font-family:var(--mono)" id="cal-source"></span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span>Upcoming Events</span>
+        <span style="font-size:9px;color:var(--muted)">
+          <span class="impact-high"></span> High &nbsp;
+          <span class="impact-medium"></span> Medium
+        </span>
+      </div>
+      <div class="panel-body" id="cal-body">
+        <div class="cal-loading">Loading calendar…</div>
+      </div>
+    </div>
+    <div class="data-source">Source: ForexFactory.com · Updates every 30 minutes</div>
+  </div>
+
   <!-- FOOTER -->
   <div style="border-top:1px solid var(--border); padding-top:20px; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px">
     <div>Policy Tracker · Part of Housing Tracker</div>
@@ -1005,11 +1073,36 @@ async function fetchLiveRates(c) {
   }
 }
 
-// ── Crypto prices via CoinGecko (free, no key) ────────────────────────────────
+// ── Crypto + Metals prices via CoinGecko (free, no key) ──────────────────────
 async function fetchCrypto() {
   try {
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd&include_24hr_change=true');
+    // Crypto + gold + silver via CoinGecko (gold = "gold", silver = "silver")
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,tether-gold,silver&vs_currencies=usd&include_24hr_change=true');
     const j = await r.json();
+
+    // Gold — CoinGecko "tether-gold" tracks 1 troy oz XAU
+    if (j['tether-gold']) {
+      const gp = j['tether-gold'].usd;
+      document.getElementById('gold-p').textContent = '$' + Math.round(gp).toLocaleString();
+      const gc = j['tether-gold'].usd_24h_change?.toFixed(2);
+      if (gc) {
+        document.getElementById('gold-d').textContent = (gc >= 0 ? '▲ +' : '▼ ') + gc + '%';
+        document.getElementById('gold-d').className = gc >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      }
+    }
+
+    // Silver via CoinGecko "silver"
+    if (j['silver']) {
+      const sp = j['silver'].usd;
+      document.getElementById('silv-p').textContent = '$' + sp.toFixed(2);
+      const sc = j['silver'].usd_24h_change?.toFixed(2);
+      if (sc) {
+        document.getElementById('silv-d').textContent = (sc >= 0 ? '▲ +' : '▼ ') + sc + '%';
+        document.getElementById('silv-d').className = sc >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      }
+    }
+
+    // Bitcoin
     if (j.bitcoin) {
       document.getElementById('btc-p').textContent = '$' + j.bitcoin.usd.toLocaleString();
       const btcChg = j.bitcoin.usd_24h_change?.toFixed(2);
@@ -1019,6 +1112,8 @@ async function fetchCrypto() {
         btcEl.className = btcChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
       }
     }
+
+    // Ethereum
     if (j.ethereum) {
       document.getElementById('eth-p').textContent = '$' + j.ethereum.usd.toLocaleString();
       const ethChg = j.ethereum.usd_24h_change?.toFixed(2);
@@ -1028,6 +1123,8 @@ async function fetchCrypto() {
         ethEl.className = ethChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
       }
     }
+
+    // XRP
     if (j.ripple) {
       document.getElementById('xrp-p').textContent = '$' + j.ripple.usd.toFixed(3);
       const xrpChg = j.ripple.usd_24h_change?.toFixed(2);
@@ -1037,7 +1134,16 @@ async function fetchCrypto() {
         xrpEl.className = xrpChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
       }
     }
-  } catch { /* fallback values already shown */ }
+
+  } catch {
+    // Fallback: try metals-api.com for gold/silver only
+    try {
+      const r2 = await fetch('https://api.metals.live/v1/spot/gold,silver');
+      const j2 = await r2.json();
+      if (j2[0]?.gold)  document.getElementById('gold-p').textContent = '$' + Math.round(j2[0].gold).toLocaleString();
+      if (j2[1]?.silver) document.getElementById('silv-p').textContent = '$' + j2[1].silver.toFixed(2);
+    } catch { /* keep hardcoded fallback */ }
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -1045,6 +1151,117 @@ setCountry(country);
 fetchCrypto();
 setInterval(fetchCrypto, 60000);   // refresh crypto every minute
 setInterval(fetchLiveRates, 3600000); // refresh FRED every hour
+
+// ── Economic Calendar ─────────────────────────────────────────────────────────
+let calWeek = 'this';
+
+async function loadCalendar(week) {
+  calWeek = week;
+  document.getElementById('tab-this').classList.toggle('active', week === 'this');
+  document.getElementById('tab-next').classList.toggle('active', week === 'next');
+  document.getElementById('cal-body').innerHTML = '<div class="cal-loading">Loading calendar…</div>';
+
+  try {
+    const r = await fetch(`/api/calendar?week=${week}`);
+    const j = await r.json();
+
+    document.getElementById('cal-source').textContent =
+      j.source === 'forexfactory.com' ? '✓ Live from ForexFactory' : '⚠ Live feed unavailable';
+
+    if (!j.events || !j.events.length) {
+      document.getElementById('cal-body').innerHTML =
+        '<div class="cal-empty">No high/medium impact USD or CAD events found for this period.</div>';
+      return;
+    }
+
+    renderCalendar(j.events);
+  } catch(e) {
+    document.getElementById('cal-body').innerHTML =
+      `<div class="cal-empty">Could not load calendar — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">view on ForexFactory ↗</a></div>`;
+  }
+}
+
+function renderCalendar(events) {
+  // Group by day
+  const days = {};
+  events.forEach(e => {
+    const d = formatCalDay(e.date);
+    if (!days[d]) days[d] = [];
+    days[d].push(e);
+  });
+
+  const now = Date.now();
+
+  let html = '';
+  Object.entries(days).forEach(([day, evs]) => {
+    html += `<div class="cal-day-group">
+      <div class="cal-day-label">${day}</div>`;
+    evs.forEach(e => {
+      const flag   = e.currency === 'USD' ? '🇺🇸' : '🇨🇦';
+      const impDot = e.impact === 'High'
+        ? '<span class="impact-high"></span>'
+        : '<span class="impact-medium"></span>';
+      const timeStr = formatCalTime(e.time, e.date);
+      const isPast  = e.actual !== '';
+
+      // Color actual vs forecast
+      let actualHtml = '<span class="cal-num dim">—</span>';
+      if (e.actual) {
+        const actNum  = parseFloat(e.actual);
+        const foreNum = parseFloat(e.forecast);
+        let cls = 'cal-actual-neu';
+        if (!isNaN(actNum) && !isNaN(foreNum)) {
+          cls = actNum >= foreNum ? 'cal-actual-good' : 'cal-actual-bad';
+        }
+        actualHtml = `<span class="cal-num ${cls}">${e.actual}</span>`;
+      }
+
+      html += `
+        <div class="cal-row" style="${isPast ? 'opacity:.6' : ''}">
+          <span class="cal-time">${timeStr}</span>
+          <span class="cal-flag">${flag}</span>
+          <span class="cal-event">${impDot} ${e.title}</span>
+          <span class="cal-num dim">${e.forecast || '—'}</span>
+          <span class="cal-num dim">${e.previous || '—'}</span>
+          ${actualHtml}
+        </div>`;
+    });
+    html += '</div>';
+  });
+
+  // Add column headers
+  const header = `
+    <div style="display:grid;grid-template-columns:70px 40px 1fr 90px 90px 90px;gap:8px;padding:4px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Time</span>
+      <span></span>
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Event</span>
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right">Forecast</span>
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right">Previous</span>
+      <span style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right">Actual</span>
+    </div>`;
+
+  document.getElementById('cal-body').innerHTML = header + html;
+}
+
+function formatCalDay(dateStr) {
+  if (!dateStr) return 'Unknown';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  } catch { return dateStr; }
+}
+
+function formatCalTime(timeStr, dateStr) {
+  if (!timeStr || timeStr === 'All Day' || timeStr === '') return 'All Day';
+  try {
+    // FF times are in ET
+    return timeStr;
+  } catch { return timeStr; }
+}
+
+// Load on init
+loadCalendar('this');
+
 </script>
 </body>
 </html>
