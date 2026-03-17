@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Co-Ownership Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,300;0,600;0,900;1,300;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #13161e;
+    --border:    #1e2330;
+    --border2:   #2a3040;
+    --gold:      #c9a84c;
+    --gold-dim:  #7a6030;
+    --green:     #3dba78;
+    --red:       #e05c5c;
+    --text:      #e8e4d8;
+    --muted:     #5a6070;
+    --muted2:    #3a4050;
+    --accent:    #4a7cdc;
+    --mono:      'DM Mono', monospace;
+    --serif:     'Fraunces', Georgia, serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background texture ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(201,168,76,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 100%, rgba(74,124,220,.05) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+  header h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 32px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  header h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+
+  /* ── Layout grid ── */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) {
+    .grid-main { grid-template-columns: 1fr; }
+  }
+
+  /* ── Panels ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-head .icon {
+    width: 20px; height: 20px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+  .panel-head h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .panel-body { padding: 18px; }
+
+  /* ── Inputs ── */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-wrap .prefix {
+    position: absolute;
+    left: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    pointer-events: none;
+  }
+  .input-wrap .suffix {
+    position: absolute;
+    right: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    pointer-events: none;
+  }
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color .15s;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--gold-dim);
+  }
+  .has-prefix input { padding-left: 22px; }
+  .has-suffix input { padding-right: 28px; }
+
+  select {
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* ── Buyer cards ── */
+  #buyers-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .buyer-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px;
+    position: relative;
+    animation: slideIn .2s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .buyer-card .buyer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .buyer-badge {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .buyer-card input[type="text"] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border2);
+    border-radius: 0;
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .buyer-card input[type="text"]:focus {
+    border-bottom-color: var(--gold-dim);
+  }
+  .btn-remove {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted2);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+    transition: color .15s;
+  }
+  .btn-remove:hover { color: var(--red); }
+
+  .split-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .split-row label { margin: 0; flex: 0 0 auto; min-width: 100px; }
+  .split-row input[type="number"] {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .split-row .pct-badge {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 0 0 30px;
+    text-align: right;
+  }
+
+  /* ── Add buyer button ── */
+  .btn-add {
+    width: 100%;
+    margin-top: 12px;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    border-radius: 3px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 10px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-add:hover {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+  }
+
+  /* ── Split warning ── */
+  #split-warning {
+    font-size: 10px;
+    color: var(--red);
+    margin-top: 8px;
+    min-height: 14px;
+    letter-spacing: .04em;
+  }
+  #split-warning.ok { color: var(--green); }
+
+  /* ── Results span full width ── */
+  .full-width { grid-column: 1 / -1; }
+
+  /* ── Summary cards ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 700px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+  }
+  .stat-card .stat-label {
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .stat-card .stat-val {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+  }
+  .stat-card .stat-sub {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Per-buyer breakdown table ── */
+  .breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .breakdown-table thead th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .breakdown-table thead th:not(:first-child) { text-align: right; }
+  .breakdown-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  .breakdown-table tbody tr:last-child { border-bottom: none; }
+  .breakdown-table tbody tr:hover { background: rgba(255,255,255,.02); }
+  .breakdown-table td {
+    padding: 11px 12px;
+    vertical-align: middle;
+  }
+  .breakdown-table td:not(:first-child) { text-align: right; }
+
+  .buyer-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+  .dim { color: var(--muted); }
+  .hi  { color: var(--gold); }
+  .good { color: var(--green); }
+  .bad  { color: var(--red); }
+
+  /* ── Monthly cost bars ── */
+  .bar-row {
+    margin-bottom: 10px;
+  }
+  .bar-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 11px;
+  }
+  .bar-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ── Cost breakdown donut ── */
+  .donut-section {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+  .donut-wrap {
+    position: relative;
+    width: 110px; height: 110px;
+    flex-shrink: 0;
+  }
+  .donut-wrap svg { width: 110px; height: 110px; }
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .donut-center .dc-val {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .donut-center .dc-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .legend { display: flex; flex-direction: column; gap: 7px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .legend-swatch {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-name { flex: 1; color: var(--muted); }
+  .legend-val  { color: var(--text); font-variant-numeric: tabular-nums; }
+
+  /* ── Affordability indicator ── */
+  .afford-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .afford-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 11px;
+    flex: 1;
+    min-width: 120px;
+  }
+  .afford-chip .ach-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .afford-chip .ach-name { color: var(--muted); }
+  .afford-chip .ach-val  { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .04em;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a href="/" style="display:inline-flex;align-items:center;gap:6px;color:#5a6070;text-decoration:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;transition:color .15s" onmouseover="this.style.color='#e8e4d8'" onmouseout="this.style.color='#5a6070'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Housing Tracker
+      </a>
+      <h1>Co-Ownership <em>Calculator</em></h1>
+    </div>
+    <span class="sub">Housing Tracker · Cost Split</span>
+  </header>
+
+  <div class="grid-main">
+
+    <!-- ── LEFT: Property Details ── -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="icon" style="background:#1e2330; color:var(--gold)">⌂</div>
+        <h2>Property Details</h2>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Purchase Price</label>
+          <div class="input-wrap has-prefix">
+            <span class="prefix">$</span>
+            <input type="number" id="price" value="750000" min="0" step="1000">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Down Payment %</label>
+            <div class="input-wrap has-suffix">
+              <input type="number" id="dp-pct" value="20" min="0" max="100" step="0.5">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Down Payment $</label>
+            <div class="input-wrap has-prefix">
+              <span class="prefix">$</span>
+              <input type="number" id="dp-amt" value="150000" min="0" step="1000">
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="row2">
+          <div class="field">
+            <label>Interest Rate</label>
+            <div class="input-wrap has-suffix">
+              <input type="number" id="rate" value="5.5" min="0" max="25" step="0.05">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Amortization</label>
+            <div class="input-wrap">
+              <select id="amort">
+                <option value="15">15 years</option>
+                <option value="20">20 years</option>
+                <option value="25" selected>25 years</option>
+                <option value="30">30 years</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="row2">
+          <div class="field">
+            <label>Property Tax / yr</label>
+            <div class="input-wrap has-prefix">
+              <span class="prefix">$</span>
+              <input type="number" id="tax" value="5000" min="0" step="100">
+            </div>
+          </div>
+          <div class="field">
+            <label>HOA / Condo Fee / mo</label>
+            <div class="input-wrap has-prefix">
+              <span class="prefix">$</span>
+              <input type="number" id="hoa" value="0" min="0" step="50">
+            </div>
+          </div>
+        </div>
+        <div class="row3">
+          <div class="field">
+            <label>Insurance / yr</label>
+            <div class="input-wrap has-prefix">
+              <span class="prefix">$</span>
+              <input type="number" id="insurance" value="2400" min="0" step="100">
+            </div>
+          </div>
+          <div class="field">
+            <label>Utilities / mo</label>
+            <div class="input-wrap has-prefix">
+              <span class="prefix">$</span>
+              <input type="number" id="utilities" value="300" min="0" step="50">
+            </div>
+          </div>
+          <div class="field">
+            <label>Maintenance % / yr</label>
+            <div class="input-wrap has-suffix">
+              <input type="number" id="maint" value="1" min="0" max="5" step="0.1">
+              <span class="suffix">%</span>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="field">
+          <label>Closing Costs</label>
+          <div class="input-wrap has-prefix">
+            <span class="prefix">$</span>
+            <input type="number" id="closing" value="15000" min="0" step="500">
+          </div>
+        </div>
+        <div class="field">
+          <label>Split Method</label>
+          <div class="input-wrap">
+            <select id="split-method">
+              <option value="equal">Equal split</option>
+              <option value="custom">Custom % (set below)</option>
+              <option value="dp">Based on down payment contribution</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: Buyers ── -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="icon" style="background:#1e2330; color:var(--accent)">👥</div>
+        <h2>Buyers</h2>
+      </div>
+      <div class="panel-body">
+        <div id="buyers-list"></div>
+        <button class="btn-add" id="btn-add-buyer">+ Add Buyer</button>
+        <div id="split-warning"></div>
+      </div>
+    </div>
+
+    <!-- ── BOTTOM: Results ── -->
+    <div class="panel full-width" id="results-panel">
+      <div class="panel-head">
+        <div class="icon" style="background:#1e2330; color:var(--green)">◈</div>
+        <h2>Cost Breakdown</h2>
+      </div>
+      <div class="panel-body">
+        <div id="results-inner">
+          <div class="empty-state">Add at least one buyer to see results.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Palette for buyers ──────────────────────────────────────
+const COLORS = [
+  { bg:'#1a2a1a', dot:'#3dba78' },
+  { bg:'#1e2035', dot:'#4a7cdc' },
+  { bg:'#2a1a1a', dot:'#e05c5c' },
+  { bg:'#2a2315', dot:'#c9a84c' },
+  { bg:'#1a1f2a', dot:'#8b72be' },
+  { bg:'#1a2a26', dot:'#2cb5a0' },
+];
+
+let buyers = [];
+let idSeq  = 0;
+
+// ── State ───────────────────────────────────────────────────
+function getInputs() {
+  return {
+    price:    +v('price'),
+    dpPct:    +v('dp-pct'),
+    dpAmt:    +v('dp-amt'),
+    rate:     +v('rate'),
+    amort:    +v('amort'),
+    tax:      +v('tax'),
+    hoa:      +v('hoa'),
+    insurance:+v('insurance'),
+    utilities:+v('utilities'),
+    maint:    +v('maint'),
+    closing:  +v('closing'),
+    splitMethod: v('split-method'),
+  };
+}
+function v(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : 0;
+}
+
+// ── Mortgage ────────────────────────────────────────────────
+function monthlyMortgage(principal, annualRate, years) {
+  if (principal <= 0) return 0;
+  if (annualRate === 0) return principal / (years * 12);
+  const r = annualRate / 100 / 12;
+  const n = years * 12;
+  return principal * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+}
+
+// ── Format ──────────────────────────────────────────────────
+function fmt(n) {
+  if (n === undefined || n === null || isNaN(n)) return '—';
+  return '$' + Math.round(n).toLocaleString('en-CA');
+}
+function fmtPct(n) {
+  return (Math.round(n * 10) / 10) + '%';
+}
+
+// ── Buyer list rendering ────────────────────────────────────
+function renderBuyers() {
+  const list = document.getElementById('buyers-list');
+  const sm   = v('split-method');
+  list.innerHTML = '';
+
+  buyers.forEach((b, idx) => {
+    const col = COLORS[idx % COLORS.length];
+    const card = document.createElement('div');
+    card.className = 'buyer-card';
+    card.dataset.id = b.id;
+
+    let extraFields = '';
+    if (sm === 'custom') {
+      extraFields = `
+        <div class="split-row">
+          <label>Ownership %</label>
+          <input type="number" class="buyer-pct" value="${b.pct}" min="0" max="100" step="0.5">
+          <span class="pct-badge">${fmtPct(b.pct)}</span>
+        </div>`;
+    } else if (sm === 'dp') {
+      extraFields = `
+        <div class="split-row">
+          <label>Down Pmt Contrib</label>
+          <div class="input-wrap has-prefix" style="flex:1">
+            <span class="prefix">$</span>
+            <input type="number" class="buyer-dp" value="${b.dp}" min="0" step="1000">
+          </div>
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="buyer-header">
+        <div class="buyer-badge" style="background:${col.bg}; color:${col.dot}">${idx + 1}</div>
+        <input type="text" class="buyer-name" value="${b.name}" placeholder="Buyer ${idx+1}">
+        ${buyers.length > 1 ? `<button class="btn-remove" data-id="${b.id}" title="Remove">×</button>` : ''}
+      </div>
+      ${extraFields}
+    `;
+    list.appendChild(card);
+  });
+
+  // Events
+  list.querySelectorAll('.buyer-name').forEach((el, idx) => {
+    el.addEventListener('input', e => { buyers[idx].name = e.target.value; recalc(); });
+  });
+  list.querySelectorAll('.buyer-pct').forEach((el, idx) => {
+    el.addEventListener('input', e => {
+      buyers[idx].pct = +e.target.value;
+      el.nextElementSibling.textContent = fmtPct(+e.target.value);
+      recalc();
+    });
+  });
+  list.querySelectorAll('.buyer-dp').forEach((el, idx) => {
+    el.addEventListener('input', e => { buyers[idx].dp = +e.target.value; recalc(); });
+  });
+  list.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = +e.currentTarget.dataset.id;
+      buyers = buyers.filter(b => b.id !== id);
+      renderBuyers();
+      recalc();
+    });
+  });
+}
+
+// ── Split calculation ───────────────────────────────────────
+function getSplits() {
+  const n  = buyers.length;
+  if (!n) return [];
+  const sm = v('split-method');
+  if (sm === 'equal') {
+    return buyers.map(() => 1 / n);
+  }
+  if (sm === 'custom') {
+    const total = buyers.reduce((s, b) => s + b.pct, 0);
+    return total > 0 ? buyers.map(b => b.pct / total) : buyers.map(() => 1/n);
+  }
+  if (sm === 'dp') {
+    const total = buyers.reduce((s, b) => s + b.dp, 0);
+    return total > 0 ? buyers.map(b => b.dp / total) : buyers.map(() => 1/n);
+  }
+  return buyers.map(() => 1/n);
+}
+
+function getSplitTotal() {
+  const sm = v('split-method');
+  if (sm !== 'custom') return 100;
+  return buyers.reduce((s, b) => s + b.pct, 0);
+}
+
+// ── Main recalc ─────────────────────────────────────────────
+function recalc() {
+  const inp = getInputs();
+
+  // Validate split
+  const warn = document.getElementById('split-warning');
+  if (v('split-method') === 'custom') {
+    const tot = getSplitTotal();
+    if (Math.abs(tot - 100) > 0.05) {
+      warn.textContent = `⚠ Ownership % totals ${fmtPct(tot)} — must equal 100%`;
+      warn.className = '';
+    } else {
+      warn.textContent = '✓ Splits total 100%';
+      warn.className = 'ok';
+    }
+  } else {
+    warn.textContent = '';
+  }
+
+  if (!buyers.length) {
+    document.getElementById('results-inner').innerHTML = '<div class="empty-state">Add at least one buyer to see results.</div>';
+    return;
+  }
+
+  // Costs
+  const principal   = inp.price - inp.dpAmt;
+  const mortgageMo  = monthlyMortgage(principal, inp.rate, +inp.amort);
+  const taxMo       = inp.tax / 12;
+  const insuranceMo = inp.insurance / 12;
+  const maintMo     = (inp.price * inp.maint / 100) / 12;
+  const totalMo     = mortgageMo + taxMo + inp.hoa + insuranceMo + inp.utilities + maintMo;
+  const totalUpfront= inp.dpAmt + inp.closing;
+
+  const splits = getSplits();
+
+  // Per-buyer
+  const perBuyer = buyers.map((b, i) => {
+    const s = splits[i];
+    return {
+      name:      b.name || `Buyer ${i+1}`,
+      split:     s,
+      pct:       (s * 100).toFixed(1),
+      dpShare:   inp.dpAmt * s,
+      closShare: inp.closing * s,
+      upfront:   totalUpfront * s,
+      mortgageMo:mortgageMo * s,
+      taxMo:     taxMo * s,
+      hoa:       inp.hoa * s,
+      insurMo:   insuranceMo * s,
+      utilMo:    inp.utilities * s,
+      maintMo:   maintMo * s,
+      totalMo:   totalMo * s,
+      color:     COLORS[i % COLORS.length].dot,
+    };
+  });
+
+  // Cost categories for donut
+  const costs = [
+    { label: 'Mortgage',    val: mortgageMo,     color: '#4a7cdc' },
+    { label: 'Property Tax',val: taxMo,           color: '#c9a84c' },
+    { label: 'HOA',         val: inp.hoa,         color: '#8b72be' },
+    { label: 'Insurance',   val: insuranceMo,     color: '#3dba78' },
+    { label: 'Utilities',   val: inp.utilities,   color: '#2cb5a0' },
+    { label: 'Maintenance', val: maintMo,         color: '#e05c5c' },
+  ].filter(c => c.val > 0.01);
+
+  // Render
+  document.getElementById('results-inner').innerHTML = buildResults(
+    inp, principal, mortgageMo, totalMo, totalUpfront, perBuyer, costs
+  );
+
+  // Draw donut
+  requestAnimationFrame(() => drawDonut(costs, totalMo));
+}
+
+// ── Results HTML ────────────────────────────────────────────
+function buildResults(inp, principal, mortgageMo, totalMo, totalUpfront, perBuyer, costs) {
+  const n = perBuyer.length;
+  const eqMo = totalMo / n;
+
+  return `
+    <!-- Summary stats -->
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Monthly</div>
+        <div class="stat-val">${fmt(totalMo)}</div>
+        <div class="stat-sub">all costs combined</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Mortgage P+I</div>
+        <div class="stat-val">${fmt(mortgageMo)}</div>
+        <div class="stat-sub">on ${fmt(principal)} loan</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Upfront</div>
+        <div class="stat-val">${fmt(totalUpfront)}</div>
+        <div class="stat-sub">down pmt + closing</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Equal Split /mo</div>
+        <div class="stat-val">${fmt(eqMo)}</div>
+        <div class="stat-sub">per person (${n} buyers)</div>
+      </div>
+    </div>
+
+    <!-- Monthly cost donut + legend -->
+    <div class="panel" style="background:var(--bg); margin-bottom:16px;">
+      <div class="panel-head">
+        <h2>Monthly Cost Composition</h2>
+      </div>
+      <div class="panel-body">
+        <div class="donut-section">
+          <div class="donut-wrap">
+            <svg id="donut-svg" viewBox="0 0 110 110"></svg>
+            <div class="donut-center">
+              <span class="dc-val">${fmt(totalMo)}</span>
+              <span class="dc-label">/ month</span>
+            </div>
+          </div>
+          <div>
+            <div class="legend" id="donut-legend">
+              ${costs.map(c => `
+                <div class="legend-item">
+                  <div class="legend-swatch" style="background:${c.color}"></div>
+                  <span class="legend-name">${c.label}</span>
+                  <span class="legend-val">${fmt(c.val)}</span>
+                </div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Per-buyer breakdown table -->
+    <div style="overflow-x:auto; margin-bottom:16px;">
+      <table class="breakdown-table">
+        <thead>
+          <tr>
+            <th>Buyer</th>
+            <th>Share</th>
+            <th>Down Pmt</th>
+            <th>Closing</th>
+            <th>Total Upfront</th>
+            <th>Mortgage /mo</th>
+            <th>All Costs /mo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${perBuyer.map(b => `
+            <tr>
+              <td>
+                <div class="buyer-name-cell">
+                  <div class="dot" style="background:${b.color}"></div>
+                  <span>${b.name}</span>
+                </div>
+              </td>
+              <td class="dim num">${b.pct}%</td>
+              <td class="num">${fmt(b.dpShare)}</td>
+              <td class="num dim">${fmt(b.closShare)}</td>
+              <td class="num hi">${fmt(b.upfront)}</td>
+              <td class="num">${fmt(b.mortgageMo)}</td>
+              <td class="num" style="color:var(--green)">${fmt(b.totalMo)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Monthly bars per buyer -->
+    <div class="panel" style="background:var(--bg);">
+      <div class="panel-head"><h2>Monthly Cost per Buyer</h2></div>
+      <div class="panel-body">
+        ${perBuyer.map(b => `
+          <div class="bar-row">
+            <div class="bar-meta">
+              <span style="color:${b.color}">${b.name}</span>
+              <span class="num">${fmt(b.totalMo)} / mo <span class="dim">(${b.pct}%)</span></span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${b.split*100}%; background:${b.color}"></div>
+            </div>
+          </div>`).join('')}
+
+        <!-- Affordability chips (based on 32% GDS guideline) -->
+        <div class="afford-row">
+          ${perBuyer.map(b => {
+            const needIncome = (b.totalMo / 0.32) * 12;
+            return `
+              <div class="afford-chip">
+                <div class="ach-dot" style="background:${b.color}"></div>
+                <span class="ach-name">${b.name}</span>
+                <span class="ach-val dim">needs&nbsp;</span>
+                <span class="ach-val">${fmt(needIncome)}<span class="dim">/yr</span></span>
+              </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:10px; color:var(--muted); margin-top:10px; letter-spacing:.04em;">
+          ↑ Minimum gross household income per buyer at 32% GDS ratio
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── SVG Donut ───────────────────────────────────────────────
+function drawDonut(costs, total) {
+  const svg = document.getElementById('donut-svg');
+  if (!svg) return;
+  const cx = 55, cy = 55, r = 40, strokeW = 14;
+  const circ = 2 * Math.PI * r;
+  svg.innerHTML = '';
+
+  // Background ring
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r);
+  bg.setAttribute('fill', 'none');
+  bg.setAttribute('stroke', '#1e2330');
+  bg.setAttribute('stroke-width', strokeW);
+  svg.appendChild(bg);
+
+  let offset = 0;
+  costs.forEach(c => {
+    const pct  = c.val / total;
+    const dash = pct * circ;
+    const gap  = circ - dash;
+
+    const arc = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    arc.setAttribute('cx', cx); arc.setAttribute('cy', cy); arc.setAttribute('r', r);
+    arc.setAttribute('fill', 'none');
+    arc.setAttribute('stroke', c.color);
+    arc.setAttribute('stroke-width', strokeW);
+    arc.setAttribute('stroke-dasharray', `${dash} ${gap}`);
+    arc.setAttribute('stroke-dashoffset', circ * 0.25 - offset * circ);
+    arc.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
+    arc.style.transition = 'stroke-dasharray .4s ease';
+    svg.appendChild(arc);
+
+    offset += pct;
+  });
+}
+
+// ── Sync dp-pct ↔ dp-amt ───────────────────────────────────
+let syncing = false;
+document.getElementById('dp-pct').addEventListener('input', () => {
+  if (syncing) return; syncing = true;
+  const price = +document.getElementById('price').value;
+  const pct   = +document.getElementById('dp-pct').value;
+  document.getElementById('dp-amt').value = Math.round(price * pct / 100);
+  syncing = false;
+  recalc();
+});
+document.getElementById('dp-amt').addEventListener('input', () => {
+  if (syncing) return; syncing = true;
+  const price = +document.getElementById('price').value;
+  const amt   = +document.getElementById('dp-amt').value;
+  document.getElementById('dp-pct').value = price > 0 ? (Math.round(amt / price * 1000) / 10) : 0;
+  syncing = false;
+  recalc();
+});
+document.getElementById('price').addEventListener('input', () => {
+  const price = +document.getElementById('price').value;
+  const pct   = +document.getElementById('dp-pct').value;
+  document.getElementById('dp-amt').value = Math.round(price * pct / 100);
+  recalc();
+});
+
+// ── Other input listeners ───────────────────────────────────
+['rate','amort','tax','hoa','insurance','utilities','maint','closing','split-method'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => { renderBuyers(); recalc(); });
+  document.getElementById(id)?.addEventListener('input',  () => { renderBuyers(); recalc(); });
+});
+
+// ── Add buyer ───────────────────────────────────────────────
+document.getElementById('btn-add-buyer').addEventListener('click', () => {
+  if (buyers.length >= 6) return;
+  const idx = buyers.length;
+  buyers.push({
+    id:   ++idSeq,
+    name: `Buyer ${idx + 1}`,
+    pct:  parseFloat((100 / (idx + 1)).toFixed(1)),
+    dp:   0,
+  });
+  // Redistribute equal pcts
+  if (v('split-method') === 'custom') {
+    const share = parseFloat((100 / buyers.length).toFixed(1));
+    buyers.forEach(b => b.pct = share);
+  }
+  renderBuyers();
+  recalc();
+});
+
+// ── Init ────────────────────────────────────────────────────
+buyers.push({ id: ++idSeq, name: 'Buyer 1', pct: 50, dp: 0 });
+buyers.push({ id: ++idSeq, name: 'Buyer 2', pct: 50, dp: 0 });
+renderBuyers();
+recalc();
+</script>
+</body>
+</html>
