@@ -1,116 +1,101 @@
 // api/calendar.js — Vercel serverless function
-// Fetches USD + CAD economic calendar
-// Primary: ForexFactory JSON · Fallback: curated recurring events
+// This week only — USD + CAD high/medium events
+// Past events get actual data from FRED where available
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate');
 
-  const isNext = req.query.week === 'next';
-  const week   = isNext ? 'nextweek' : 'thisweek';
-
   // ── Try ForexFactory ──────────────────────────────────────────────────────
-  const urls = [
-    `https://nfs.faireconomy.media/ff_calendar_${week}.json?version=1`,
-    `https://nfs.faireconomy.media/ff_calendar_${week}.json`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const r = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://www.forexfactory.com/',
-          'Origin': 'https://www.forexfactory.com',
-        },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!r.ok) continue;
+  try {
+    const r = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=1', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, */*',
+        'Referer': 'https://www.forexfactory.com/',
+        'Origin': 'https://www.forexfactory.com',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (r.ok) {
       const data = await r.json();
-      if (!Array.isArray(data) || data.length === 0) continue;
-
-      const filtered = data
-        .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
-        .map(e => ({
-          date: e.date || '', time: e.time || 'All Day',
-          currency: e.currency, impact: e.impact,
-          title: e.title || '', forecast: e.forecast || '',
-          previous: e.previous || '', actual: e.actual || '',
-        }));
-
-      // If FF returned data but it's all past (empty after filter), fall through to fallback
-      if (filtered.length > 0) {
-        return res.status(200).json({ events: filtered, week, count: filtered.length, source: 'forexfactory.com' });
+      if (Array.isArray(data) && data.length > 0) {
+        const filtered = data
+          .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
+          .map(e => ({
+            date: e.date || '', time: e.time || 'All Day',
+            currency: e.currency, impact: e.impact,
+            title: e.title || '', forecast: e.forecast || '',
+            previous: e.previous || '', actual: e.actual || '',
+          }));
+        if (filtered.length > 0) {
+          return res.status(200).json({ events: filtered, count: filtered.length, source: 'forexfactory.com' });
+        }
       }
-    } catch { continue; }
-  }
+    }
+  } catch { /* fall through */ }
 
-  // ── Fallback: generate events for correct week ────────────────────────────
-  // Get start of the target week (Mon)
+  // ── Fallback: build this week's events with FRED actuals ──────────────────
   const now = new Date();
-  const dayOfWeek = now.getUTCDay(); // 0=Sun,1=Mon,...6=Sat
-  const daysToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const thisMon = new Date(now);
-  thisMon.setUTCDate(now.getUTCDate() + daysToMon + (isNext ? 7 : 0));
-  thisMon.setUTCHours(0, 0, 0, 0);
+  // Get Monday of current week (UTC)
+  const dow = now.getUTCDay();
+  const daysToMon = dow === 0 ? -6 : 1 - dow;
+  const mon = new Date(now);
+  mon.setUTCDate(now.getUTCDate() + daysToMon);
+  mon.setUTCHours(0, 0, 0, 0);
 
-  // Helper: date string for day offset from Monday
-  function dayDate(offsetFromMon) {
-    const d = new Date(thisMon);
-    d.setUTCDate(thisMon.getUTCDate() + offsetFromMon);
+  function dayStr(offset) {
+    const d = new Date(mon);
+    d.setUTCDate(mon.getUTCDate() + offset);
     return d.toISOString().split('T')[0];
   }
 
-  // Recurring weekly events mapped to Mon(0)..Fri(4)
-  const RECURRING = [
+  // Fetch latest FRED values for key indicators (single batch)
+  let fredData = {};
+  try {
+    const FRED_KEY = process.env.FRED_API_KEY || '';
+    if (FRED_KEY) {
+      const series = ['CPIAUCSL','CPILFESL','PPIACO','PPIFIS','ICSA','HOUST','HSNGFARG',
+                      'PCE','PCEPILFE','GDP','MICH','UMCSENT','UNRATE'];
+      const results = await Promise.allSettled(series.map(id =>
+        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=2&file_type=json`)
+          .then(r => r.json())
+          .then(j => ({ id, val: j.observations?.[0]?.value, prev: j.observations?.[1]?.value }))
+      ));
+      results.forEach(r => { if (r.status === 'fulfilled' && r.value) fredData[r.value.id] = r.value; });
+    }
+  } catch { /* FRED optional */ }
+
+  const f = (id) => fredData[id]?.val ? parseFloat(fredData[id].val).toFixed(1) + (id.includes('CPI')||id.includes('PPI')||id.includes('PCE')||id==='GDP'?'%':'') : '';
+  const p = (id) => fredData[id]?.prev ? parseFloat(fredData[id].prev).toFixed(1) + (id.includes('CPI')||id.includes('PPI')||id.includes('PCE')||id==='GDP'?'%':'') : '';
+
+  const events = [
     // Monday
-    { off:0, time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',       forecast:'49.5', previous:'50.3' },
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',     forecast:'49.5', previous:'50.3',  actual:'' },
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Construction Spending m/m', forecast:'0.3%', previous:'0.5%',  actual:'' },
     // Tuesday
-    { off:1, time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',                forecast:'0.3%', previous:'0.4%' },
-    { off:1, time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                     forecast:'3.1%', previous:'3.2%' },
-    { off:1, time:'9:30am ET',  currency:'CAD', impact:'High',   title:'CPI m/m',                     forecast:'0.6%', previous:'0.1%' },
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',              forecast:'0.3%', previous:'0.4%',  actual: f('CPILFESL') },
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                   forecast:'3.1%', previous:'3.2%',  actual: f('CPIAUCSL') },
+    { date:dayStr(1), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'CPI m/m',                   forecast:'0.6%', previous:'0.1%',  actual:'' },
     // Wednesday
-    { off:2, time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                     forecast:'0.3%', previous:'0.4%' },
-    { off:2, time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',                forecast:'0.2%', previous:'0.3%' },
-    { off:2, time:'9:30am ET',  currency:'CAD', impact:'High',   title:'Core CPI m/m',                forecast:'0.4%', previous:'0.4%' },
-    { off:2, time:'2:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Meeting Minutes',        forecast:'',     previous:''     },
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                   forecast:'0.3%', previous:'0.4%',  actual: f('PPIACO') },
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',              forecast:'0.2%', previous:'0.3%',  actual: f('PPIFIS') },
+    { date:dayStr(2), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'Core CPI m/m',              forecast:'0.4%', previous:'0.4%',  actual:'' },
+    { date:dayStr(2), time:'2:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Meeting Minutes',      forecast:'',     previous:'',      actual:'' },
     // Thursday
-    { off:3, time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',         forecast:'220K', previous:'218K' },
-    { off:3, time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',            forecast:'1.45M',previous:'1.47M'},
-    { off:3, time:'9:00am ET',  currency:'USD', impact:'Medium', title:'Existing Home Sales',         forecast:'3.9M', previous:'4.0M' },
-    { off:3, time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Retail Sales m/m',            forecast:'0.4%', previous:'2.5%' },
-    { off:3, time:'1:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Member Speech',          forecast:'',     previous:''     },
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',       forecast:'220K', previous:'218K',  actual: f('ICSA') },
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',          forecast:'1.45M',previous:'1.47M', actual: f('HSNGFARG') },
+    { date:dayStr(3), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Existing Home Sales',       forecast:'3.9M', previous:'4.0M',  actual:'' },
+    { date:dayStr(3), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Retail Sales m/m',          forecast:'0.4%', previous:'2.5%',  actual:'' },
+    { date:dayStr(3), time:'1:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Member Speech',        forecast:'',     previous:'',      actual:'' },
     // Friday
-    { off:4, time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m',    forecast:'0.3%', previous:'0.3%' },
-    { off:4, time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                     forecast:'2.3%', previous:'3.1%' },
-    { off:4, time:'9:45am ET',  currency:'USD', impact:'Medium', title:'Flash Manufacturing PMI',     forecast:'52.0', previous:'52.7' },
-    { off:4, time:'10:00am ET', currency:'USD', impact:'Medium', title:'CB Consumer Confidence',      forecast:'93.0', previous:'98.3' },
-    { off:4, time:'9:30am ET',  currency:'CAD', impact:'High',   title:'GDP m/m',                     forecast:'0.2%', previous:'0.2%' },
-    { off:4, time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Employment Change',           forecast:'15.0K',previous:'76.0K'},
-  ];
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m',  forecast:'0.3%', previous:'0.3%',  actual: f('PCEPILFE') },
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                   forecast:'2.3%', previous:'3.1%',  actual: f('GDP') },
+    { date:dayStr(4), time:'9:45am ET',  currency:'USD', impact:'Medium', title:'Flash Manufacturing PMI',   forecast:'52.0', previous:'52.7',  actual:'' },
+    { date:dayStr(4), time:'10:00am ET', currency:'USD', impact:'Medium', title:'UoM Consumer Sentiment',    forecast:'63.0', previous:'64.7',  actual: f('UMCSENT') },
+    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'GDP m/m',                   forecast:'0.2%', previous:'0.2%',  actual:'' },
+    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Employment Change',         forecast:'15.0K',previous:'76.0K', actual:'' },
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
-  // For "this week", only show events from today onwards
-  const todayStr = now.toISOString().split('T')[0];
-
-  const events = RECURRING
-    .map(e => ({
-      date:     dayDate(e.off),
-      time:     e.time,
-      currency: e.currency,
-      impact:   e.impact,
-      title:    e.title,
-      forecast: e.forecast,
-      previous: e.previous,
-      actual:   '',
-    }))
-    .filter(e => isNext || e.date >= todayStr) // for this week, only show today+
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  return res.status(200).json({
-    events,
-    week,
-    count: events.length,
-    source: 'estimated',
-  });
+  return res.status(200).json({ events, count: events.length, source: 'estimated' });
 }
