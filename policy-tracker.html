@@ -1212,36 +1212,71 @@ fetchCrypto();
 setInterval(fetchCrypto, 60000);   // refresh crypto every minute
 setInterval(fetchLiveRates, 3600000); // refresh FRED every hour
 
-// ── Economic Calendar ─────────────────────────────────────────────────────────
+// ── Economic Calendar — browser-direct FF fetch ───────────────────────────────
 let calWeek = 'this';
 
 async function loadCalendar(week) {
   calWeek = week || 'this';
   document.getElementById('cal-body').innerHTML = '<div class="cal-loading">Loading calendar…</div>';
 
+  const srcEl = document.getElementById('cal-source');
+
+  // Try ForexFactory directly from browser (works client-side, blocked server-side)
+  const FF_URLS = [
+    'https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=1',
+    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+  ];
+
+  for (const url of FF_URLS) {
+    try {
+      const r = await fetch(url, {
+        headers: {
+          'Accept': 'application/json, */*',
+        },
+        // no-cors would block reading, so try with cors first
+        mode: 'cors',
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      const filtered = data
+        .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
+        .map(e => ({
+          date:     e.date     || '',
+          time:     e.time     || 'All Day',
+          currency: e.currency,
+          impact:   e.impact,
+          title:    e.title    || '',
+          forecast: e.forecast || '',
+          previous: e.previous || '',
+          actual:   e.actual   || '',
+        }));
+
+      if (filtered.length > 0) {
+        srcEl.textContent = '✓ Live from ForexFactory';
+        srcEl.style.color = 'var(--green)';
+        renderCalendar(filtered);
+        return;
+      }
+    } catch { continue; }
+  }
+
+  // FF failed from browser too — fall back to /api/calendar
   try {
-    const r = await fetch(`/api/calendar?week=this`);
+    const r = await fetch('/api/calendar?week=this');
     const j = await r.json();
-
-    const srcEl = document.getElementById('cal-source');
-    if (j.source === 'forexfactory.com') {
-      srcEl.textContent = '✓ Live from ForexFactory';
-      srcEl.style.color = 'var(--green)';
+    srcEl.textContent = '⚠ Estimated — ForexFactory unavailable';
+    srcEl.style.color = 'var(--yellow)';
+    if (j.events?.length) {
+      renderCalendar(j.events);
     } else {
-      srcEl.textContent = '⚠ Estimated — ForexFactory blocked server-side';
-      srcEl.style.color = 'var(--yellow)';
-    }
-
-    if (!j.events || !j.events.length) {
       document.getElementById('cal-body').innerHTML =
-        '<div class="cal-empty">No events this week — check back Monday.</div>';
-      return;
+        '<div class="cal-empty">No events found — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">view on ForexFactory ↗</a></div>';
     }
-
-    renderCalendar(j.events);
-  } catch(e) {
+  } catch {
     document.getElementById('cal-body').innerHTML =
-      `<div class="cal-empty">Could not load — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">ForexFactory ↗</a></div>`;
+      '<div class="cal-empty">Could not load calendar — <a href="https://www.forexfactory.com/calendar" target="_blank" style="color:var(--blue)">ForexFactory ↗</a></div>';
   }
 }
 
