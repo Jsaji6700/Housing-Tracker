@@ -1138,28 +1138,30 @@ async function fetchLiveRates(c) {
 async function fetchCrypto() {
   try {
     // Crypto + gold + silver via CoinGecko (gold = "gold", silver = "silver")
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,tether-gold,silver&vs_currencies=usd&include_24hr_change=true');
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,pax-gold,silver&vs_currencies=usd&include_24hr_change=true');
     const j = await r.json();
 
-    // Gold — CoinGecko "tether-gold" tracks 1 troy oz XAU
-    if (j['tether-gold']) {
-      const gp = j['tether-gold'].usd;
+    // Gold — use pax-gold (PAXG) which tracks 1 troy oz XAU spot price accurately
+    if (j['pax-gold']) {
+      const gp = j['pax-gold'].usd;
       document.getElementById('gold-p').textContent = '$' + Math.round(gp).toLocaleString();
-      const gc = j['tether-gold'].usd_24h_change?.toFixed(2);
+      const gc = j['pax-gold'].usd_24h_change?.toFixed(2);
       if (gc) {
         document.getElementById('gold-d').textContent = (gc >= 0 ? '▲ +' : '▼ ') + gc + '%';
         document.getElementById('gold-d').className = gc >= 0 ? 'inv-change-up' : 'inv-change-dn';
       }
     }
 
-    // Silver via CoinGecko "silver"
+    // Silver — use silver token on CoinGecko
     if (j['silver']) {
       const sp = j['silver'].usd;
-      document.getElementById('silv-p').textContent = '$' + sp.toFixed(2);
-      const sc = j['silver'].usd_24h_change?.toFixed(2);
-      if (sc) {
-        document.getElementById('silv-d').textContent = (sc >= 0 ? '▲ +' : '▼ ') + sc + '%';
-        document.getElementById('silv-d').className = sc >= 0 ? 'inv-change-up' : 'inv-change-dn';
+      if (sp && sp > 1) { // sanity check — silver should be > $1
+        document.getElementById('silv-p').textContent = '$' + sp.toFixed(2);
+        const sc = j['silver'].usd_24h_change?.toFixed(2);
+        if (sc) {
+          document.getElementById('silv-d').textContent = (sc >= 0 ? '▲ +' : '▼ ') + sc + '%';
+          document.getElementById('silv-d').className = sc >= 0 ? 'inv-change-up' : 'inv-change-dn';
+        }
       }
     }
 
@@ -1197,12 +1199,12 @@ async function fetchCrypto() {
     }
 
   } catch {
-    // Fallback: try metals-api.com for gold/silver only
+    // Fallback: metals.live API for gold/silver
     try {
-      const r2 = await fetch('https://api.metals.live/v1/spot/gold,silver');
+      const r2 = await fetch('https://api.metals.live/v1/spot');
       const j2 = await r2.json();
-      if (j2[0]?.gold)  document.getElementById('gold-p').textContent = '$' + Math.round(j2[0].gold).toLocaleString();
-      if (j2[1]?.silver) document.getElementById('silv-p').textContent = '$' + j2[1].silver.toFixed(2);
+      if (j2?.gold)   document.getElementById('gold-p').textContent = '$' + Math.round(j2.gold).toLocaleString();
+      if (j2?.silver) document.getElementById('silv-p').textContent = '$' + parseFloat(j2.silver).toFixed(2);
     } catch { /* keep hardcoded fallback */ }
   }
 }
