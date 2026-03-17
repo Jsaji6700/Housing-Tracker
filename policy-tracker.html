@@ -702,7 +702,7 @@ body::before {
             <tr><td><span class="asset-icon">✕</span>XRP</td><td class="num" id="xrp-p">$2.18</td><td class="inv-change-up" id="xrp-d">▲ +2.1%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
           </tbody>
         </table>
-        <div class="data-source">Prices delayed ~15min · CoinGecko · Yahoo Finance</div>
+        <div class="data-source">Gold &amp; Silver: Kitco · Crypto: CoinGecko · ~15min delay</div>
       </div>
 
       <!-- Treasury Bonds -->
@@ -1134,79 +1134,80 @@ async function fetchLiveRates(c) {
   }
 }
 
-// ── Crypto + Metals prices via CoinGecko (free, no key) ──────────────────────
-async function fetchCrypto() {
+// ── Metals (Kitco) + Crypto (CoinGecko) ─────────────────────────────────────
+function setPrice(id, val, prefix='$', decimals=0) {
+  const el = document.getElementById(id);
+  if (el && val) el.textContent = prefix + (decimals > 0 ? parseFloat(val).toFixed(decimals) : Math.round(val).toLocaleString());
+}
+function setChange(elId, chg) {
+  const el = document.getElementById(elId);
+  if (!el || chg === null || chg === undefined) return;
+  const n = parseFloat(chg);
+  el.textContent = (n >= 0 ? '▲ +' : '▼ ') + Math.abs(n).toFixed(2) + '%';
+  el.className = n >= 0 ? 'inv-change-up' : 'inv-change-dn';
+}
+
+async function fetchMetals() {
+  // Kitco public price API — same data their chart page uses
   try {
-    // Crypto + gold + silver via CoinGecko (gold = "gold", silver = "silver")
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,pax-gold,silver&vs_currencies=usd&include_24hr_change=true');
+    const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD', {
+      headers: { 'Accept': 'application/json' }
+    });
+    const j = await r.json();
+    // Response: { items: [{ xauPrice, xagPrice, ... }] }
+    const item = j?.items?.[0];
+    if (item?.xauPrice) {
+      setPrice('gold-p', item.xauPrice, '$', 0);
+      // Calculate 24h change from open if available
+      if (item.xauOpen) {
+        const chg = ((item.xauPrice - item.xauOpen) / item.xauOpen * 100).toFixed(2);
+        setChange('gold-d', chg);
+      }
+    }
+    if (item?.xagPrice && item.xagPrice > 1) {
+      setPrice('silv-p', item.xagPrice, '$', 2);
+      if (item.xagOpen) {
+        const chg = ((item.xagPrice - item.xagOpen) / item.xagOpen * 100).toFixed(2);
+        setChange('silv-d', chg);
+      }
+    }
+    return true;
+  } catch { /* try next source */ }
+
+  // Fallback: metals.live
+  try {
+    const r = await fetch('https://api.metals.live/v1/spot');
+    const j = await r.json();
+    if (j?.gold  && j.gold  > 100) setPrice('gold-p', j.gold,  '$', 0);
+    if (j?.silver && j.silver > 1)  setPrice('silv-p', j.silver,'$', 2);
+    return true;
+  } catch { /* keep hardcoded */ }
+
+  return false;
+}
+
+async function fetchCrypto() {
+  // Metals first
+  fetchMetals();
+
+  // Crypto via CoinGecko
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd&include_24hr_change=true');
     const j = await r.json();
 
-    // Gold — use pax-gold (PAXG) which tracks 1 troy oz XAU spot price accurately
-    if (j['pax-gold']) {
-      const gp = j['pax-gold'].usd;
-      document.getElementById('gold-p').textContent = '$' + Math.round(gp).toLocaleString();
-      const gc = j['pax-gold'].usd_24h_change?.toFixed(2);
-      if (gc) {
-        document.getElementById('gold-d').textContent = (gc >= 0 ? '▲ +' : '▼ ') + gc + '%';
-        document.getElementById('gold-d').className = gc >= 0 ? 'inv-change-up' : 'inv-change-dn';
-      }
-    }
-
-    // Silver — use silver token on CoinGecko
-    if (j['silver']) {
-      const sp = j['silver'].usd;
-      if (sp && sp > 1) { // sanity check — silver should be > $1
-        document.getElementById('silv-p').textContent = '$' + sp.toFixed(2);
-        const sc = j['silver'].usd_24h_change?.toFixed(2);
-        if (sc) {
-          document.getElementById('silv-d').textContent = (sc >= 0 ? '▲ +' : '▼ ') + sc + '%';
-          document.getElementById('silv-d').className = sc >= 0 ? 'inv-change-up' : 'inv-change-dn';
-        }
-      }
-    }
-
-    // Bitcoin
     if (j.bitcoin) {
-      document.getElementById('btc-p').textContent = '$' + j.bitcoin.usd.toLocaleString();
-      const btcChg = j.bitcoin.usd_24h_change?.toFixed(2);
-      const btcEl = document.getElementById('btc-d');
-      if (btcChg) {
-        btcEl.textContent = (btcChg >= 0 ? '▲ +' : '▼ ') + btcChg + '%';
-        btcEl.className = btcChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
-      }
+      setPrice('btc-p', j.bitcoin.usd, '$', 0);
+      setChange('btc-d', j.bitcoin.usd_24h_change);
     }
-
-    // Ethereum
     if (j.ethereum) {
-      document.getElementById('eth-p').textContent = '$' + j.ethereum.usd.toLocaleString();
-      const ethChg = j.ethereum.usd_24h_change?.toFixed(2);
-      const ethEl = document.getElementById('eth-d');
-      if (ethChg) {
-        ethEl.textContent = (ethChg >= 0 ? '▲ +' : '▼ ') + ethChg + '%';
-        ethEl.className = ethChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
-      }
+      setPrice('eth-p', j.ethereum.usd, '$', 0);
+      setChange('eth-d', j.ethereum.usd_24h_change);
     }
-
-    // XRP
     if (j.ripple) {
       document.getElementById('xrp-p').textContent = '$' + j.ripple.usd.toFixed(3);
-      const xrpChg = j.ripple.usd_24h_change?.toFixed(2);
-      const xrpEl = document.getElementById('xrp-d');
-      if (xrpChg) {
-        xrpEl.textContent = (xrpChg >= 0 ? '▲ +' : '▼ ') + xrpChg + '%';
-        xrpEl.className = xrpChg >= 0 ? 'inv-change-up' : 'inv-change-dn';
-      }
+      setChange('xrp-d', j.ripple.usd_24h_change);
     }
-
-  } catch {
-    // Fallback: metals.live API for gold/silver
-    try {
-      const r2 = await fetch('https://api.metals.live/v1/spot');
-      const j2 = await r2.json();
-      if (j2?.gold)   document.getElementById('gold-p').textContent = '$' + Math.round(j2.gold).toLocaleString();
-      if (j2?.silver) document.getElementById('silv-p').textContent = '$' + parseFloat(j2.silver).toFixed(2);
-    } catch { /* keep hardcoded fallback */ }
-  }
+  } catch { /* keep defaults */ }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
