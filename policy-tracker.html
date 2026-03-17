@@ -997,6 +997,37 @@ function renderCountryData(c) {
   // Cost of living title
   document.getElementById('col-title').textContent = d.colTitle;
 
+  // Swap metrics table for CA
+  if (c === 'ca') {
+    document.getElementById('metrics-tbody').innerHTML = `
+      <tr><td>Median Home Price (National)</td><td class="num dim">C$500,000</td><td class="num">C$868,000</td><td class="num dim">C$717,000</td><td class="num bad">+21%</td><td><span class="badge badge-red"><span class="dot-red"></span>Critical</span></td></tr>
+      <tr><td>Toronto Median</td><td class="num dim">C$800,000</td><td class="num">C$1,093,000</td><td class="num dim">C$1,050,000</td><td class="num bad">+4.1%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+      <tr><td>Vancouver Median</td><td class="num dim">C$900,000</td><td class="num">C$1,196,000</td><td class="num dim">C$1,172,000</td><td class="num bad">+2.0%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+      <tr><td>BOC Overnight Rate</td><td class="num dim">2.75%</td><td class="num" id="mt-rate">—</td><td class="num dim">5.00%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+      <tr><td>5yr Fixed Mortgage</td><td class="num dim">4.50%</td><td class="num" id="mt-fed">—</td><td class="num dim">6.49%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>In progress</span></td></tr>
+      <tr><td>10yr GoC Bond</td><td class="num dim">3.50%</td><td class="num" id="mt-t10">—</td><td class="num dim">3.60%</td><td class="num dim">—</td><td><span class="badge badge-gray"><span class="dot-gray"></span>Watch</span></td></tr>
+      <tr><td>Core Inflation Y/Y</td><td class="num dim">2.00%</td><td class="num" id="mt-cpi">—</td><td class="num dim">3.40%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+      <tr><td>CMHC Affordability (National)</td><td class="num dim">100</td><td class="num">45.7</td><td class="num dim">42.0</td><td class="num warn">+8.8%</td><td><span class="badge badge-red"><span class="dot-red"></span>Critical</span></td></tr>
+      <tr><td>Median Household Income</td><td class="num dim">C$100,000</td><td class="num">C$92,000</td><td class="num dim">C$86,000</td><td class="num good">+7.0%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+      <tr><td>Housing Starts (annual)</td><td class="num dim">450,000</td><td class="num">240,267</td><td class="num dim">225,000</td><td class="num good">+6.8%</td><td><span class="badge badge-red"><span class="dot-red"></span>Far below</span></td></tr>
+      <tr><td>Homes Needed by 2031</td><td class="num dim">3,870,000</td><td class="num">~480K built</td><td class="num dim">0</td><td class="num warn">12% done</td><td><span class="badge badge-red"><span class="dot-red"></span>Urgent</span></td></tr>
+    `;
+  } else {
+    document.getElementById('metrics-tbody').innerHTML = `
+      <tr><td>Median Home Price</td><td class="num dim">$385,000</td><td class="num" id="mt-home">$413,500</td><td class="num dim">$407,500</td><td class="num bad">+1.5%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+      <tr><td>New Construction Median</td><td class="num dim">$401,800</td><td class="num">$413,500</td><td class="num dim">$427,500</td><td class="num good">−3.3%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+      <tr><td>Affordable Home Median</td><td class="num dim">$310,000</td><td class="num">$362,800</td><td class="num dim">$340,500</td><td class="num bad">+6.5%</td><td><span class="badge badge-red"><span class="dot-red"></span>Behind</span></td></tr>
+      <tr><td>Mortgage Rate (30yr)</td><td class="num dim">4.33%</td><td class="num" id="mt-rate">—</td><td class="num dim">7.07%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Partial</span></td></tr>
+      <tr><td>Fed Funds Rate</td><td class="num dim">3.88%</td><td class="num" id="mt-fed">—</td><td class="num dim">4.33%</td><td class="num good">−</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>In progress</span></td></tr>
+      <tr><td>10yr Treasury Yield</td><td class="num dim">4.39%</td><td class="num" id="mt-t10">—</td><td class="num dim">4.63%</td><td class="num dim">—</td><td><span class="badge badge-gray"><span class="dot-gray"></span>Watch</span></td></tr>
+      <tr><td>Core Inflation Y/Y</td><td class="num dim">3.29%</td><td class="num" id="mt-cpi">—</td><td class="num dim">3.29%</td><td class="num dim">—</td><td><span class="badge badge-gray"><span class="dot-gray"></span>Watch</span></td></tr>
+      <tr><td>Median Mortgage P&I</td><td class="num dim">$2,250</td><td class="num">$2,649</td><td class="num dim">$2,700</td><td class="num good">−1.9%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Improving</span></td></tr>
+      <tr><td>FHFA Affordability Index</td><td class="num dim">95</td><td class="num">64.6</td><td class="num dim">68</td><td class="num dim">−</td><td><span class="badge badge-red"><span class="dot-red"></span>Critical</span></td></tr>
+      <tr><td>Median Household Income</td><td class="num dim">$80,610</td><td class="num">$83,730</td><td class="num dim">$80,610</td><td class="num good">+3.9%</td><td><span class="badge badge-green"><span class="dot-green"></span>On track</span></td></tr>
+      <tr><td>Total Homes for Sale</td><td class="num dim">2,502,500</td><td class="num">1,180,001</td><td class="num dim">829,376</td><td class="num good">+42%</td><td><span class="badge badge-yellow"><span class="dot-yellow"></span>Rising</span></td></tr>
+    `;
+  }
+
   // Fetch live scores for selected country
   fetchLiveRates(c);
 }
@@ -1010,60 +1041,90 @@ async function fetchLiveRates(c) {
     const j = await r.json();
 
     const isCA = c === 'ca';
-    const rUS = (isCA ? j.ratesCA : j.ratesUS)?.rates || {};
-    const infl = (isCA ? j.ratesCA : j.ratesUS)?.inflation || {};
+    const rates = (isCA ? j.ratesCA : j.ratesUS)?.rates || {};
+    const infl  = (isCA ? j.ratesCA : j.ratesUS)?.inflation || {};
 
-    // Update KPI cards
-    if (rUS.mort30?.value) {
-      const v = rUS.mort30.value.toFixed(2) + '%';
+    // Rate keys differ between US and CA
+    // US:  mort30, fedFunds, t2y, t5y, t10y, t30y
+    // CA:  mort5y, overnight, bond2y, bond5y, bond10y, bond30y
+    const mortKey  = isCA ? 'mort5y'    : 'mort30';
+    const policyKey= isCA ? 'overnight' : 'fedFunds';
+    const b2Key    = isCA ? 'bond2y'    : 't2y';
+    const b5Key    = isCA ? 'bond5y'    : 't5y';
+    const b10Key   = isCA ? 'bond10y'   : 't10y';
+    const b30Key   = isCA ? 'bond30y'   : 't30y';
+
+    // Mortgage rate KPI
+    if (rates[mortKey]?.value) {
+      const v = rates[mortKey].value.toFixed(2) + '%';
       document.getElementById('kpi-rate').textContent = v;
-      document.getElementById('mt-rate').textContent = v;
+      document.getElementById('mt-rate').textContent  = v;
       document.getElementById('econ-mort').textContent = v;
     }
-    if (rUS.fedFunds?.value) {
-      document.getElementById('mt-fed').textContent = rUS.fedFunds.value.toFixed(2) + '%';
+    // Policy rate (Fed Funds / BOC Overnight)
+    if (rates[policyKey]?.value) {
+      document.getElementById('mt-fed').textContent = rates[policyKey].value.toFixed(2) + '%';
     }
-    if (rUS.t10y?.value) {
-      const v = rUS.t10y.value.toFixed(2) + '%';
+    // Bond yields
+    if (rates[b10Key]?.value) {
+      const v = rates[b10Key].value.toFixed(2) + '%';
       document.getElementById('mt-t10').textContent = v;
-      document.getElementById('t10-y').textContent = v;
+      document.getElementById('t10-y').textContent  = v;
     }
-    if (rUS.t2y?.value)  document.getElementById('t2-y').textContent  = rUS.t2y.value.toFixed(2) + '%';
-    if (rUS.t5y?.value)  document.getElementById('t5-y').textContent  = rUS.t5y.value.toFixed(2) + '%';
-    if (rUS.t30y?.value) document.getElementById('t30-y').textContent = rUS.t30y.value.toFixed(2) + '%';
+    if (rates[b2Key]?.value)  document.getElementById('t2-y').textContent  = rates[b2Key].value.toFixed(2)  + '%';
+    if (rates[b5Key]?.value)  document.getElementById('t5-y').textContent  = rates[b5Key].value.toFixed(2)  + '%';
+    if (rates[b30Key]?.value) document.getElementById('t30-y').textContent = rates[b30Key].value.toFixed(2) + '%';
 
+    // Inflation
     if (infl.cpi?.value) {
       document.getElementById('mt-cpi').textContent = infl.cpi.value.toFixed(2) + '%';
     }
 
-    // Yield curve
-    const t2 = rUS.t2y?.value, t10 = rUS.t10y?.value;
-    if (t2 && t10) {
-      const spread = (t10 - t2).toFixed(2);
+    // Yield curve note
+    const t2val  = rates[b2Key]?.value;
+    const t10val = rates[b10Key]?.value;
+    if (t2val && t10val) {
+      const spread = (t10val - t2val).toFixed(2);
       const el = document.getElementById('yield-curve-note');
-      if (t10 > t2) {
+      if (t10val > t2val) {
         el.style.background = 'var(--green-dim)';
         el.style.color = '#4ade80';
         el.style.borderColor = 'rgba(29,185,116,.3)';
-        el.textContent = `✓ Yield curve normal — 10yr (${t10.toFixed(2)}%) > 2yr (${t2.toFixed(2)}%) · Spread: +${spread}%`;
+        el.textContent = `✓ Yield curve normal — 10yr (${t10val.toFixed(2)}%) > 2yr (${t2val.toFixed(2)}%) · Spread: +${spread}%`;
       } else {
         el.style.background = 'var(--red-dim)';
         el.style.color = '#ff6b6b';
         el.style.borderColor = 'rgba(229,57,53,.3)';
-        el.textContent = `⚠ Yield curve inverted — 2yr (${t2.toFixed(2)}%) > 10yr (${t10.toFixed(2)}%) · Spread: ${spread}%`;
+        el.textContent = `⚠ Yield curve inverted — 2yr (${t2val.toFixed(2)}%) > 10yr (${t10val.toFixed(2)}%) · Spread: ${spread}%`;
       }
     }
 
-    // National scores
-    const d = j.us;
-    if (d) {
-      document.getElementById('hero-score').textContent = d.health.toFixed(1);
-      const healthLabel = d.health >= 85 ? 'Affordable Housing' : d.health >= 72.5 ? "Buyer's Market" : d.health >= 60 ? 'Neutral Market' : d.health >= 50 ? 'Affordability Crisis' : d.health >= 40 ? 'Nowhere Close' : 'Crisis Mode';
-      const healthColor = d.health >= 72 ? '#1db974' : d.health >= 60 ? '#f5c518' : d.health >= 50 ? '#f07030' : '#e53935';
-      document.getElementById('hero-score').style.color = healthColor;
+    // Health score — use correct country
+    const scoreData = isCA ? j.ca : j.us;
+    if (scoreData) {
+      const h = scoreData.health;
+      document.getElementById('hero-score').textContent = h.toFixed(1);
+      const healthLabel = h >= 85 ? 'Affordable Housing' : h >= 72.5 ? "Buyer's Market" : h >= 60 ? 'Neutral Market' : h >= 50 ? 'Affordability Crisis' : h >= 40 ? 'Nowhere Close' : 'Crisis Mode';
+      const healthColor = h >= 72 ? '#1db974' : h >= 60 ? '#f5c518' : h >= 50 ? '#f07030' : '#e53935';
+      document.getElementById('hero-score').style.color  = healthColor;
       document.getElementById('hero-status').textContent = '● ' + healthLabel;
       document.getElementById('hero-status').style.color = healthColor;
     }
+
+    // Update KPI cards with CA-specific values when CA is selected
+    if (isCA) {
+      document.getElementById('kpi-home').textContent   = '$868,000';
+      document.getElementById('mt-home').textContent    = '$868,000';
+      document.getElementById('kpi-afford').textContent = '45.7';
+    } else {
+      document.getElementById('kpi-home').textContent   = '$413,500';
+      document.getElementById('mt-home').textContent    = '$413,500';
+      document.getElementById('kpi-afford').textContent = '64.6';
+    }
+
+    // Update KPI rate card label for CA
+    document.querySelector('#kpi-rate').previousElementSibling.textContent =
+      isCA ? 'Mortgage Rate (5yr Fixed)' : 'Mortgage Rate (30yr)';
 
     document.getElementById('last-updated').textContent =
       'Updated: ' + new Date().toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
