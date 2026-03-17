@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
       const isCA = metro.country === 'ca';
       const [data, rates] = await Promise.all([
-        isCA ? fetchCityCA(metro) : fetchCityUS(metro, FRED_KEY),
+        isCA ? fetchCityCA(metro, FRED_KEY) : fetchCityUS(metro, FRED_KEY),
         isCA ? fetchRatesCA() : fetchRatesUS(FRED_KEY),
       ]);
       return res.status(200).json({ city: metro.display, country: metro.country, province: metro.prov || null, lat: metro.lat || null, lng: metro.lng || null, data, rates, estimated: metro.estimated || false, updated: new Date().toISOString() });
@@ -1254,11 +1254,37 @@ async function fetchCA() {
     return computeCA({bond10y:parseFloat(obs['BD.CDN.10YR.DQ.YLD']?.v)||3.5,bond5y:parseFloat(obs['BD.CDN.5YR.DQ.YLD']?.v)||3.2});
   } catch{return{supply:32,afford:38.5,crash:58.2,health:43.1,raw:{},fallback:true};}
 }
-async function fetchCityCA(metro) {
+
+// CA city HPI mapping — FRED series for major Canadian metros
+const CA_HPI = {
+  'Toronto, ON':    'QCAR628BIS',
+  'Ottawa, ON':     'QCAR694BIS',
+  'Vancouver, BC':  'QCAR784BIS',
+  'Calgary, AB':    'QCAR825BIS',
+  'Edmonton, AB':   'QCAR835BIS',
+  'Montreal, QC':   'QCAR624BIS',
+  'Winnipeg, MB':   'QCAR633BIS',
+  'Halifax, NS':    'QCAR630BIS',
+  'Victoria, BC':   'QCAR786BIS',
+  'Hamilton, ON':   'QCAR925BIS',
+};
+
+async function fetchCityCA(metro, FRED_KEY) {
   try {
-    const j=await(await fetch('https://www.bankofcanada.ca/valet/observations/group/bond_yields_all/json?recent=1')).json();
-    const obs=j?.observations?.[0]||{};
-    return computeCA({bond10y:parseFloat(obs['BD.CDN.10YR.DQ.YLD']?.v)||3.5,bond5y:parseFloat(obs['BD.CDN.5YR.DQ.YLD']?.v)||3.2,supplyAdj:metro.supply_adj||0,affordAdj:metro.afford_adj||0,crashAdj:metro.crash_adj||0});
+    const [bondJ, hpiHistory] = await Promise.all([
+      fetch('https://www.bankofcanada.ca/valet/observations/group/bond_yields_all/json?recent=1').then(r=>r.json()).catch(()=>({})),
+      (CA_HPI[metro.display] && FRED_KEY) ? fredHistory(CA_HPI[metro.display], FRED_KEY, 20) : Promise.resolve([]),
+    ]);
+    const obs = bondJ?.observations?.[0] || {};
+    const result = computeCA({
+      bond10y:parseFloat(obs['BD.CDN.10YR.DQ.YLD']?.v)||3.5,
+      bond5y:parseFloat(obs['BD.CDN.5YR.DQ.YLD']?.v)||3.2,
+      supplyAdj:metro.supply_adj||0,
+      affordAdj:metro.afford_adj||0,
+      crashAdj:metro.crash_adj||0
+    });
+    if (hpiHistory.length) result.raw.hpiHistory = hpiHistory;
+    return result;
   } catch{return{supply:32,afford:38.5,crash:58.2,health:43.1,raw:{},fallback:true};}
 }
 function computeCA({bond10y,bond5y,supplyAdj=0,affordAdj=0,crashAdj=0}) {
