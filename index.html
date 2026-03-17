@@ -339,16 +339,22 @@
         </div>
       </div>
     </div>
-    <div class="country-toggle">
-      <span style="font-size:16px">🇺🇸</span>
-      <span class="lbl active" id="lbl-us">US</span>
-      <label class="switch">
-        <input type="checkbox" id="country-toggle">
-        <span class="sw-track"></span>
-        <span class="sw-thumb"></span>
-      </label>
-      <span class="lbl" id="lbl-ca">CA</span>
-      <span style="font-size:16px">🇨🇦</span>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <a href="/co-ownership.html" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:0.5px solid var(--border2);border-radius:999px;padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;transition:border-color .2s,color .2s;white-space:nowrap" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(55,138,221,.6)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='rgba(255,255,255,0.15)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Co-Ownership
+      </a>
+      <div class="country-toggle">
+        <span style="font-size:16px">&#127482;&#127480;</span>
+        <span class="lbl active" id="lbl-us">US</span>
+        <label class="switch">
+          <input type="checkbox" id="country-toggle">
+          <span class="sw-track"></span>
+          <span class="sw-thumb"></span>
+        </label>
+        <span class="lbl" id="lbl-ca">CA</span>
+        <span style="font-size:16px">&#127464;&#127462;</span>
+      </div>
     </div>
   </div>
 
