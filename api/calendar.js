@@ -1,14 +1,13 @@
-// api/calendar.js
-// Builds this/next week calendar with FRED actuals for past events
+// api/calendar.js — economic calendar with actuals from FRED
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate');
 
   const isNext = req.query.week === 'next';
-
-  // ── Try ForexFactory first ────────────────────────────────────────────────
   const ffFile = isNext ? 'nextweek' : 'thisweek';
+
+  // ── Try ForexFactory (has real actuals) ───────────────────────────────────
   try {
     const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`, {
       headers: {
@@ -37,7 +36,7 @@ export default async function handler(req, res) {
     }
   } catch { /* fall through */ }
 
-  // ── Build week schedule ───────────────────────────────────────────────────
+  // ── Build schedule ────────────────────────────────────────────────────────
   const now = new Date();
   const dow = now.getUTCDay();
   const daysToMon = dow === 0 ? -6 : 1 - dow;
@@ -45,121 +44,87 @@ export default async function handler(req, res) {
   baseMon.setUTCDate(now.getUTCDate() + daysToMon + (isNext ? 7 : 0));
   baseMon.setUTCHours(0, 0, 0, 0);
 
-  function dayStr(offset) {
+  const todayStr = new Date(now.getTime() - 5*3600000).toISOString().split('T')[0];
+  const etHour   = new Date(now.getTime() - 5*3600000).getUTCHours();
+
+  function dayStr(off) {
     const d = new Date(baseMon);
-    d.setUTCDate(baseMon.getUTCDate() + offset);
+    d.setUTCDate(baseMon.getUTCDate() + off);
     return d.toISOString().split('T')[0];
   }
 
-  // Today in ET (UTC-5)
-  const todayStr = new Date(now.getTime() - 5*3600000).toISOString().split('T')[0];
-
-  // ── Fetch FRED actuals ────────────────────────────────────────────────────
-  // Each series: id, how to format the value for display
+  // ── FRED actuals ──────────────────────────────────────────────────────────
   const FRED_KEY = process.env.FRED_API_KEY || '';
-  const fredVals = {};
+  const A = {}; // actuals map
 
   if (FRED_KEY) {
-    // Series mapped to event keys with display format
-    // format: 'pct' = already a %, 'level_k' = divide by 1000 + K, 'index' = show as-is, 'mom_pct' = need to calc from index
+    // Fetch each series — use correct limit for calculation type
     const SERIES = [
-      // US
-      { id:'CPILFESL',        key:'core_cpi_mom',   fmt:'mom_pct' },   // Core CPI index → m/m %
-      { id:'CPIAUCSL',        key:'cpi_yoy',         fmt:'yoy_pct' },   // CPI index → y/y %
-      { id:'PPIACO',          key:'ppi_mom',         fmt:'mom_pct' },   // PPI index → m/m %
-      { id:'PPIFIS',          key:'core_ppi_mom',    fmt:'mom_pct' },   // Core PPI → m/m %
-      { id:'ICSA',            key:'claims',           fmt:'level_k' },   // Initial claims (weekly level)
-      { id:'PERMIT',          key:'permits',          fmt:'level_m' },   // Building permits (thousands → M)
-      { id:'EXHOSLUSM495S',   key:'exist_homes',     fmt:'level_m' },   // Existing home sales (M)
-      { id:'PCEPILFE',        key:'core_pce_mom',    fmt:'mom_pct' },   // Core PCE → m/m %
-      { id:'A191RL1Q225SBEA', key:'gdp',             fmt:'pct' },       // Real GDP growth rate (already %)
-      { id:'UMCSENT',         key:'umcsent',          fmt:'index' },     // UoM Sentiment (index)
-      { id:'UNRATE',          key:'unrate',           fmt:'pct' },       // Unemployment rate
-      { id:'ISRATIO',         key:'ism_mfg',          fmt:'index' },     // ISM proxy
+      // Series that FRED returns as already-computed rates (no math needed)
+      { id:'A191RL1Q225SBEA', key:'gdp',      lim:1,  fmt: v => v.toFixed(1)+'%'  }, // Real GDP QoQ %
+      { id:'UNRATE',          key:'unrate',   lim:1,  fmt: v => v.toFixed(1)+'%'  }, // Unemployment rate %
+      { id:'UMCSENT',         key:'umcsent',  lim:1,  fmt: v => v.toFixed(1)       }, // UoM sentiment index
+      // Weekly — show raw level formatted
+      { id:'ICSA',            key:'claims',   lim:1,  fmt: v => Math.round(v/1000)+'K' }, // Initial claims
+      // Monthly index series — calculate m/m % change (need 2 obs)
+      { id:'CPILFESL',        key:'core_cpi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'CPIAUCSL',        key:'cpi',      lim:13, fmt:(v,p,all)=> all?.length>=13 ? ((v-parseFloat(all[12].value))/parseFloat(all[12].value)*100).toFixed(1)+'%' : '' },
+      { id:'PPIACO',          key:'ppi',      lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'PPIFIS',          key:'core_ppi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'PCEPILFE',        key:'core_pce', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
     ];
 
-    await Promise.allSettled(SERIES.map(async ({ id, key, fmt }) => {
+    await Promise.allSettled(SERIES.map(async ({ id, key, lim, fmt }) => {
       try {
-        // For m/m and y/y calcs we need more observations
-        const limit = fmt === 'yoy_pct' ? 14 : 3;
-        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${limit}&file_type=json`;
-        const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${lim}&file_type=json`;
+        const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
         const j = await r.json();
-        const obs = (j.observations || []).filter(o => o.value !== '.' && o.value !== '');
+        const obs = (j.observations||[]).filter(o => o.value !== '.' && o.value !== '' && !isNaN(parseFloat(o.value)));
         if (!obs.length) return;
 
-        const latest = parseFloat(obs[0].value);
         const latestDate = obs[0].date;
+        const ageDays = (now - new Date(latestDate)) / 86400000;
 
-        // Don't use stale data (> 60 days old for monthly, > 14 days for weekly)
-        const agedays = (now - new Date(latestDate)) / 86400000;
-        const maxAge = fmt === 'level_k' ? 14 : 60;
-        if (agedays > maxAge) return;
+        // Weekly series (claims): must be within 10 days
+        // Monthly series: within 50 days (monthly data releases ~3-4 weeks after period)
+        // Quarterly (GDP): within 100 days
+        const maxAge = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 50;
+        if (ageDays > maxAge) return;
 
-        let display = '';
-        if (fmt === 'pct') {
-          display = latest.toFixed(1) + '%';
-        } else if (fmt === 'index') {
-          display = latest.toFixed(1);
-        } else if (fmt === 'level_k') {
-          display = Math.round(latest / 1000) + 'K';
-        } else if (fmt === 'level_m') {
-          display = (latest / 1000).toFixed(2) + 'M';
-        } else if (fmt === 'mom_pct' && obs.length >= 2) {
-          const prev = parseFloat(obs[1].value);
-          if (prev && prev !== 0) {
-            display = ((latest - prev) / prev * 100).toFixed(1) + '%';
-          }
-        } else if (fmt === 'yoy_pct' && obs.length >= 13) {
-          const yr_ago = parseFloat(obs[12].value);
-          if (yr_ago && yr_ago !== 0) {
-            display = ((latest - yr_ago) / yr_ago * 100).toFixed(1) + '%';
-          }
-        }
-
-        if (display) fredVals[key] = display;
-      } catch { /* skip */ }
+        const cur  = parseFloat(obs[0].value);
+        const prev = obs.length > 1 ? parseFloat(obs[1].value) : null;
+        const display = fmt(cur, prev, obs);
+        if (display) A[key] = display;
+      } catch {}
     }));
   }
 
-  // Only return actual if event date is strictly before today (already released)
+  // Only show actual if event is in the past AND past 10am ET (enough time for release)
   function act(key, dateStr) {
-    if (dateStr >= todayStr) return '';
-    return fredVals[key] || '';
-  }
-
-  // For today's events — show actual if it's past 9am ET (most morning releases done)
-  const etHour = new Date(now.getTime() - 5*3600000).getUTCHours();
-  function actToday(key, dateStr) {
-    if (dateStr > todayStr) return '';
-    if (dateStr === todayStr && etHour < 9) return ''; // too early
-    return fredVals[key] || '';
+    if (dateStr > todayStr) return '';                          // future
+    if (dateStr === todayStr && etHour < 10) return '';         // today but too early
+    return A[key] || '';
   }
 
   const events = [
-    // Monday
-    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',    forecast:'49.5', previous:'50.3',  actual: actToday('ism_mfg',      dayStr(0)) },
-    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Construction Spending m/m',forecast:'0.3%', previous:'0.5%',  actual: act('',                  dayStr(0)) },
-    // Tuesday
-    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',             forecast:'0.3%', previous:'0.4%',  actual: actToday('core_cpi_mom', dayStr(1)) },
-    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                  forecast:'3.1%', previous:'3.2%',  actual: actToday('cpi_yoy',      dayStr(1)) },
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',    forecast:'49.5', previous:'50.3',  actual: act('', dayStr(0)) },
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Construction Spending m/m',forecast:'0.3%', previous:'0.5%',  actual: act('', dayStr(0)) },
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',             forecast:'0.3%', previous:'0.4%',  actual: act('core_cpi', dayStr(1)) },
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                  forecast:'3.1%', previous:'3.2%',  actual: act('cpi',      dayStr(1)) },
     { date:dayStr(1), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'CPI m/m',                  forecast:'0.6%', previous:'0.1%',  actual: '' },
-    // Wednesday
-    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                  forecast:'0.3%', previous:'0.4%',  actual: actToday('ppi_mom',      dayStr(2)) },
-    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',             forecast:'0.2%', previous:'0.3%',  actual: actToday('core_ppi_mom', dayStr(2)) },
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                  forecast:'0.3%', previous:'0.4%',  actual: act('ppi',      dayStr(2)) },
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',             forecast:'0.2%', previous:'0.3%',  actual: act('core_ppi', dayStr(2)) },
     { date:dayStr(2), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'Core CPI m/m',             forecast:'0.4%', previous:'0.4%',  actual: '' },
     { date:dayStr(2), time:'2:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Meeting Minutes',     forecast:'',     previous:'',      actual: '' },
-    // Thursday
-    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',      forecast:'220K', previous:'218K',  actual: actToday('claims',       dayStr(3)) },
-    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',         forecast:'1.45M',previous:'1.47M', actual: actToday('permits',      dayStr(3)) },
-    { date:dayStr(3), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Existing Home Sales',      forecast:'3.9M', previous:'4.0M',  actual: actToday('exist_homes',  dayStr(3)) },
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',      forecast:'220K', previous:'218K',  actual: act('claims',   dayStr(3)) },
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',         forecast:'1.45M',previous:'1.47M', actual: '' },
+    { date:dayStr(3), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Existing Home Sales',      forecast:'3.9M', previous:'4.0M',  actual: '' },
     { date:dayStr(3), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Retail Sales m/m',         forecast:'0.4%', previous:'2.5%',  actual: '' },
     { date:dayStr(3), time:'1:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Member Speech',       forecast:'',     previous:'',      actual: '' },
-    // Friday
-    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m', forecast:'0.3%', previous:'0.3%',  actual: actToday('core_pce_mom', dayStr(4)) },
-    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                  forecast:'2.3%', previous:'3.1%',  actual: actToday('gdp',          dayStr(4)) },
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m', forecast:'0.3%', previous:'0.3%',  actual: act('core_pce', dayStr(4)) },
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                  forecast:'2.3%', previous:'3.1%',  actual: act('gdp',      dayStr(4)) },
     { date:dayStr(4), time:'9:45am ET',  currency:'USD', impact:'Medium', title:'Flash Manufacturing PMI',  forecast:'52.0', previous:'52.7',  actual: '' },
-    { date:dayStr(4), time:'10:00am ET', currency:'USD', impact:'Medium', title:'UoM Consumer Sentiment',   forecast:'63.0', previous:'64.7',  actual: actToday('umcsent',      dayStr(4)) },
+    { date:dayStr(4), time:'10:00am ET', currency:'USD', impact:'Medium', title:'UoM Consumer Sentiment',   forecast:'63.0', previous:'64.7',  actual: act('umcsent',  dayStr(4)) },
     { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'GDP m/m',                  forecast:'0.2%', previous:'0.2%',  actual: '' },
     { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Employment Change',        forecast:'15.0K',previous:'76.0K', actual: '' },
   ].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
