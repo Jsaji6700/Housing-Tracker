@@ -1226,8 +1226,14 @@ async function loadCalendar(week) {
     const r = await fetch(`/api/calendar?week=${week}`);
     const j = await r.json();
 
-    document.getElementById('cal-source').textContent =
-      j.source === 'forexfactory.com' ? '✓ Live from ForexFactory' : '⚠ Live feed unavailable';
+    const srcEl = document.getElementById('cal-source');
+    if (j.source === 'forexfactory.com') {
+      srcEl.textContent = '✓ Live from ForexFactory';
+      srcEl.style.color = 'var(--green)';
+    } else {
+      srcEl.textContent = '⚠ Estimated events — ForexFactory blocked server-side';
+      srcEl.style.color = 'var(--yellow)';
+    }
 
     if (!j.events || !j.events.length) {
       document.getElementById('cal-body').innerHTML =
