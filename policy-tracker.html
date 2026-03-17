@@ -1148,39 +1148,68 @@ function setChange(elId, chg) {
 }
 
 async function fetchMetals() {
-  // Kitco public price API — same data their chart page uses
-  try {
-    const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD', {
-      headers: { 'Accept': 'application/json' }
-    });
-    const j = await r.json();
-    // Response: { items: [{ xauPrice, xagPrice, ... }] }
-    const item = j?.items?.[0];
-    if (item?.xauPrice) {
-      setPrice('gold-p', item.xauPrice, '$', 0);
-      // Calculate 24h change from open if available
-      if (item.xauOpen) {
-        const chg = ((item.xauPrice - item.xauOpen) / item.xauOpen * 100).toFixed(2);
-        setChange('gold-d', chg);
-      }
-    }
-    if (item?.xagPrice && item.xagPrice > 1) {
-      setPrice('silv-p', item.xagPrice, '$', 2);
-      if (item.xagOpen) {
-        const chg = ((item.xagPrice - item.xagOpen) / item.xagOpen * 100).toFixed(2);
-        setChange('silv-d', chg);
-      }
-    }
-    return true;
-  } catch { /* try next source */ }
+  // Try multiple CORS-friendly metals APIs in order
 
-  // Fallback: metals.live
+  // 1. metals.live — free, no key, CORS open
   try {
-    const r = await fetch('https://api.metals.live/v1/spot');
-    const j = await r.json();
-    if (j?.gold  && j.gold  > 100) setPrice('gold-p', j.gold,  '$', 0);
-    if (j?.silver && j.silver > 1)  setPrice('silv-p', j.silver,'$', 2);
-    return true;
+    const r = await fetch('https://api.metals.live/v1/spot', { cache: 'no-cache' });
+    if (r.ok) {
+      const j = await r.json();
+      if (j?.gold && j.gold > 500) {
+        setPrice('gold-p', j.gold, '$', 0);
+        document.getElementById('gold-d').textContent = '~spot';
+        document.getElementById('gold-d').className = 'inv-change-flat';
+      }
+      if (j?.silver && j.silver > 5) {
+        setPrice('silv-p', j.silver, '$', 2);
+        document.getElementById('silv-d').textContent = '~spot';
+        document.getElementById('silv-d').className = 'inv-change-flat';
+      }
+      if (j?.platinum && j.platinum > 100) {
+        setPrice('plat-p', j.platinum, '$', 0);
+      }
+      return true;
+    }
+  } catch { /* try next */ }
+
+  // 2. goldprice.org — CORS allowed
+  try {
+    const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD', { cache: 'no-cache' });
+    if (r.ok) {
+      const j = await r.json();
+      const item = j?.items?.[0];
+      if (item?.xauPrice && item.xauPrice > 500) {
+        setPrice('gold-p', item.xauPrice, '$', 0);
+        if (item.xauOpen) setChange('gold-d', ((item.xauPrice - item.xauOpen) / item.xauOpen * 100).toFixed(2));
+      }
+      if (item?.xagPrice && item.xagPrice > 5) {
+        setPrice('silv-p', item.xagPrice, '$', 2);
+        if (item.xagOpen) setChange('silv-d', ((item.xagPrice - item.xagOpen) / item.xagOpen * 100).toFixed(2));
+      }
+      return true;
+    }
+  } catch { /* try next */ }
+
+  // 3. Our own Vercel proxy — guaranteed server-side fetch
+  try {
+    const r = await fetch('/api/metals', { cache: 'no-cache' });
+    if (r.ok) {
+      const j = await r.json();
+      if (j?.gold?.price && j.gold.price > 500) {
+        setPrice('gold-p', j.gold.price, '$', 0);
+        if (j.gold.open) setChange('gold-d', ((j.gold.price - j.gold.open) / j.gold.open * 100).toFixed(2));
+        else { document.getElementById('gold-d').textContent = 'live'; document.getElementById('gold-d').className = 'inv-change-flat'; }
+      }
+      if (j?.silver?.price && j.silver.price > 5) {
+        setPrice('silv-p', j.silver.price, '$', 2);
+        if (j.silver.open) setChange('silv-d', ((j.silver.price - j.silver.open) / j.silver.open * 100).toFixed(2));
+        else { document.getElementById('silv-d').textContent = 'live'; document.getElementById('silv-d').className = 'inv-change-flat'; }
+      }
+      if (j?.platinum?.price && j.platinum.price > 100) {
+        setPrice('plat-p', j.platinum.price, '$', 0);
+      }
+      return true;
+    }
   } catch { /* keep hardcoded */ }
 
   return false;
