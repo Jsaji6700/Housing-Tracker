@@ -692,14 +692,14 @@ body::before {
         <table class="data-table">
           <thead><tr><th>Asset</th><th>Price</th><th>1D %</th><th>1W %</th><th>1M %</th></tr></thead>
           <tbody id="inv-commodities">
-            <tr><td><span class="asset-icon">🥇</span>Gold</td><td class="num" id="gold-p">$3,180</td><td class="inv-change-up" id="gold-d">▲ +0.8%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">🥈</span>Silver</td><td class="num" id="silv-p">$31.40</td><td class="inv-change-dn" id="silv-d">▼ −0.3%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">🪙</span>Platinum</td><td class="num" id="plat-p">$985</td><td class="inv-change-up" id="plat-d">▲ +0.2%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">📈</span>S&amp;P 500</td><td class="num" id="sp-p">5,614</td><td class="inv-change-dn" id="sp-d">▼ −0.5%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">📊</span>Dow Jones</td><td class="num" id="dj-p">41,820</td><td class="inv-change-dn" id="dj-d">▼ −0.4%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">₿</span>Bitcoin</td><td class="num" id="btc-p">$84,200</td><td class="inv-change-up" id="btc-d">▲ +1.2%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">Ξ</span>Ethereum</td><td class="num" id="eth-p">$1,920</td><td class="inv-change-dn" id="eth-d">▼ −0.8%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
-            <tr><td><span class="asset-icon">✕</span>XRP</td><td class="num" id="xrp-p">$2.18</td><td class="inv-change-up" id="xrp-d">▲ +2.1%</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">🥇</span>Gold</td><td class="num" id="gold-p">—</td><td class="inv-change-flat" id="gold-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">🥈</span>Silver</td><td class="num" id="silv-p">—</td><td class="inv-change-flat" id="silv-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">🪙</span>Platinum</td><td class="num" id="plat-p">—</td><td class="inv-change-flat" id="plat-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">📈</span>S&amp;P 500</td><td class="num" id="sp-p">—</td><td class="inv-change-flat" id="sp-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">📊</span>Dow Jones</td><td class="num" id="dj-p">—</td><td class="inv-change-flat" id="dj-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">₿</span>Bitcoin</td><td class="num" id="btc-p">—</td><td class="inv-change-flat" id="btc-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">Ξ</span>Ethereum</td><td class="num" id="eth-p">—</td><td class="inv-change-flat" id="eth-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
+            <tr><td><span class="asset-icon">✕</span>XRP</td><td class="num" id="xrp-p">—</td><td class="inv-change-flat" id="xrp-d">—</td><td class="num dim">—</td><td class="num dim">—</td></tr>
           </tbody>
         </table>
         <div class="data-source">Gold &amp; Silver: Kitco · Crypto: CoinGecko · ~15min delay</div>
@@ -1208,27 +1208,49 @@ async function fetchMetals() {
 }
 
 async function fetchCrypto() {
-  // Metals first
-  fetchMetals();
+  // Run all fetches in parallel
+  await Promise.allSettled([
+    fetchMetals(),
+    fetchCryptoCoins(),
+    fetchEquities(),
+  ]);
+}
 
-  // Crypto via CoinGecko
+async function fetchCryptoCoins() {
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd&include_24hr_change=true');
+    if (!r.ok) throw new Error('CoinGecko failed');
     const j = await r.json();
+    if (j.bitcoin)  { setPrice('btc-p', j.bitcoin.usd,  '$', 0); setChange('btc-d', j.bitcoin.usd_24h_change); }
+    if (j.ethereum) { setPrice('eth-p', j.ethereum.usd, '$', 0); setChange('eth-d', j.ethereum.usd_24h_change); }
+    if (j.ripple)   { document.getElementById('xrp-p').textContent = '$' + j.ripple.usd.toFixed(3); setChange('xrp-d', j.ripple.usd_24h_change); }
+  } catch { /* keep — */ }
+}
 
-    if (j.bitcoin) {
-      setPrice('btc-p', j.bitcoin.usd, '$', 0);
-      setChange('btc-d', j.bitcoin.usd_24h_change);
-    }
-    if (j.ethereum) {
-      setPrice('eth-p', j.ethereum.usd, '$', 0);
-      setChange('eth-d', j.ethereum.usd_24h_change);
-    }
-    if (j.ripple) {
-      document.getElementById('xrp-p').textContent = '$' + j.ripple.usd.toFixed(3);
-      setChange('xrp-d', j.ripple.usd_24h_change);
-    }
-  } catch { /* keep defaults */ }
+async function fetchEquities() {
+  // S&P 500 and Dow Jones via Yahoo Finance query (no API key needed)
+  const symbols = [
+    { sym: '%5EGSPC', priceId: 'sp-p',  chgId: 'sp-d',  fmt: v => Math.round(v).toLocaleString() },
+    { sym: '%5EDJI',  priceId: 'dj-p',  chgId: 'dj-d',  fmt: v => Math.round(v).toLocaleString() },
+  ];
+
+  await Promise.allSettled(symbols.map(async ({ sym, priceId, chgId, fmt }) => {
+    try {
+      // Use Yahoo Finance v8 quote endpoint
+      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!r.ok) throw new Error('Yahoo failed');
+      const j = await r.json();
+      const meta = j?.chart?.result?.[0]?.meta;
+      if (!meta?.regularMarketPrice) throw new Error('No price');
+      const price  = meta.regularMarketPrice;
+      const prev   = meta.chartPreviousClose || meta.previousClose;
+      const el = document.getElementById(priceId);
+      if (el) el.textContent = fmt(price);
+      if (prev) setChange(chgId, ((price - prev) / prev * 100).toFixed(2));
+    } catch { /* keep — */ }
+  }));
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
