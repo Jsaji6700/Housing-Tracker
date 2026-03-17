@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -306,53 +305,6 @@
     .compare-table tr:last-child td{border-bottom:none}
     .compare-table .winner{font-weight:700}
     .compare-empty{font-size:12px;color:var(--muted);text-align:center;padding:20px 0}
-
-    /* ── AUTH ── */
-    .auth-btn{display:flex;align-items:center;gap:6px;background:var(--surface);border:0.5px solid var(--border2);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--muted);cursor:pointer;font-family:var(--font-sans);transition:all .2s;white-space:nowrap}
-    .auth-btn:hover{border-color:rgba(255,255,255,.3);color:var(--text)}
-    .auth-btn.signed-in{background:linear-gradient(135deg,rgba(55,138,221,.15),rgba(29,158,117,.15));border-color:rgba(55,138,221,.3);color:var(--text)}
-    .auth-avatar{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#378ADD,#1D9E75);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
-    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;padding:1rem}
-    .modal-overlay.open{display:flex}
-    .modal{background:var(--surface);border:0.5px solid var(--border2);border-radius:16px;padding:2rem;width:100%;max-width:420px;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.5)}
-    .modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;border-radius:6px;transition:all .15s}
-    .modal-close:hover{background:var(--surface2);color:var(--text)}
-    .auth-input{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--text);font-family:var(--font-sans);outline:none;transition:border-color .2s;margin-bottom:12px;box-sizing:border-box}
-    .auth-input:focus{border-color:rgba(55,138,221,.5)}
-    .auth-submit{width:100%;background:linear-gradient(135deg,#378ADD,#1D9E75);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;font-family:var(--font-sans);cursor:pointer;transition:opacity .2s;margin-bottom:8px}
-    .auth-submit:hover{opacity:.88}
-    .auth-submit:disabled{opacity:.5;cursor:not-allowed}
-    .auth-msg{font-size:13px;text-align:center;padding:10px;border-radius:8px;margin-bottom:8px;display:none}
-    .auth-msg.success{background:rgba(29,158,117,.15);color:#1D9E75;border:0.5px solid rgba(29,158,117,.3);display:block}
-    .auth-msg.error{background:rgba(226,75,74,.15);color:#E24B4A;border:0.5px solid rgba(226,75,74,.3);display:block}
-    .dash-panel{background:var(--surface);border:0.5px solid var(--border2);border-radius:16px;padding:1.5rem;width:100%;max-width:580px;max-height:82vh;overflow-y:auto;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.5)}
-    .dash-tabs{display:flex;gap:4px;margin-bottom:1.25rem;background:var(--surface2);border-radius:10px;padding:4px}
-    .dash-tab{flex:1;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:6px 8px;border-radius:7px;font-family:var(--font-sans);transition:all .15s;text-align:center}
-    .dash-tab.active{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-    .dash-section{display:none}
-    .dash-section.active{display:block}
-    .fav-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px;font-size:13px;gap:8px}
-    .fav-item-name{cursor:pointer;flex:1;color:var(--text)}
-    .fav-item-name:hover{color:var(--blue)}
-    .fav-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;transition:all .15s}
-    .fav-remove:hover{color:var(--red);background:rgba(226,75,74,.1)}
-    .note-area{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:8px;padding:10px;font-size:13px;color:var(--text);font-family:var(--font-sans);outline:none;resize:vertical;min-height:80px;transition:border-color .2s;box-sizing:border-box}
-    .note-area:focus{border-color:rgba(55,138,221,.4)}
-    .note-save-btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:var(--font-sans);margin-top:6px;transition:opacity .2s}
-    .note-save-btn:hover{opacity:.85}
-    .alert-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px;font-size:12px}
-    .alert-badge{background:rgba(250,199,117,.15);color:#FAC775;border:0.5px solid rgba(250,199,117,.3);border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap}
-    .empty-state{text-align:center;padding:28px 0;color:var(--muted);font-size:13px}
-    .empty-icon{font-size:32px;margin-bottom:8px;display:block}
-    .city-save-bar{display:none;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-    .city-save-bar.visible{display:flex}
-    .save-btn{display:flex;align-items:center;gap:5px;background:var(--surface);border:0.5px solid var(--border);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:var(--font-sans);transition:all .2s}
-    .save-btn:hover{border-color:var(--border2);color:var(--text)}
-    .save-btn.saved{background:rgba(29,158,117,.12);border-color:rgba(29,158,117,.4);color:#1D9E75}
-    .save-btn.alerted{background:rgba(250,199,117,.12);border-color:rgba(250,199,117,.4);color:#FAC775}
-    .bookmark-btn{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:0.5px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--muted);cursor:pointer;font-family:var(--font-sans);transition:all .2s;text-decoration:none}
-    .bookmark-btn:hover{border-color:var(--border2);color:var(--text)}
-    .bookmark-btn.bookmarked{background:rgba(55,138,221,.12);border-color:rgba(55,138,221,.4);color:var(--blue)}
   </style>
 </head>
 <body>
@@ -387,22 +339,16 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div class="country-toggle">
-        <span style="font-size:16px">🇺🇸</span>
-        <span class="lbl active" id="lbl-us">US</span>
-        <label class="switch">
-          <input type="checkbox" id="country-toggle">
-          <span class="sw-track"></span>
-          <span class="sw-thumb"></span>
-        </label>
-        <span class="lbl" id="lbl-ca">CA</span>
-        <span style="font-size:16px">🇨🇦</span>
-      </div>
-      <button class="auth-btn" id="auth-btn" onclick="openAuthModal()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <span id="auth-btn-label">Sign In</span>
-      </button>
+    <div class="country-toggle">
+      <span style="font-size:16px">🇺🇸</span>
+      <span class="lbl active" id="lbl-us">US</span>
+      <label class="switch">
+        <input type="checkbox" id="country-toggle">
+        <span class="sw-track"></span>
+        <span class="sw-thumb"></span>
+      </label>
+      <span class="lbl" id="lbl-ca">CA</span>
+      <span style="font-size:16px">🇨🇦</span>
     </div>
   </div>
 
@@ -427,13 +373,6 @@
     <span id="city-flag" style="font-size:16px">🇺🇸</span>
     <span class="city-name" id="city-name"></span>
     <button class="city-back" id="city-back">&#8592; National</button>
-  </div>
-
-  <!-- CITY SAVE BAR (shown when signed in + viewing a city) -->
-  <div class="city-save-bar" id="city-save-bar">
-    <button class="save-btn" id="btn-fav-city" onclick="toggleFavCity()">♡ Save City</button>
-    <button class="save-btn" id="btn-alert-city" onclick="toggleAlert()">🔔 Price Alert</button>
-    <button class="save-btn" id="btn-note-city" onclick="openNoteModal()">📝 Add Note</button>
   </div>
 
   <div class="status-bar">
@@ -730,71 +669,6 @@
 </div><!-- end sidebar -->
 </div><!-- end main-layout -->
 </div><!-- end page -->
-
-<!-- ── LOGIN MODAL ── -->
-<div class="modal-overlay" id="auth-modal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeAuthModal()">✕</button>
-    <div class="modal-logo">
-      <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#1a1f2e"/><path d="M21 9L33 19V33H27V25H15V33H9V19L21 9Z" fill="url(#ml)"/><defs><linearGradient id="ml" x1="9" y1="9" x2="33" y2="33"><stop stop-color="#378ADD"/><stop offset="1" stop-color="#1D9E75"/></linearGradient></defs></svg>
-      <div>
-        <div style="font-family:var(--font-mono);font-size:16px;font-weight:700">HOUSING TRACKER</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Save cities, notes &amp; alerts</div>
-      </div>
-    </div>
-    <div id="auth-msg" class="auth-msg"></div>
-    <div id="auth-form-wrap">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Enter your email and we'll send you a magic sign-in link — no password needed.</p>
-      <input class="auth-input" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
-      <button class="auth-submit" id="auth-submit-btn" onclick="sendMagicLink()">Send Magic Link ✉</button>
-      <p style="font-size:11px;color:var(--muted);text-align:center">By signing in you agree to our terms. We never share your email.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ── USER DASHBOARD MODAL ── -->
-<div class="modal-overlay" id="dash-modal">
-  <div class="dash-panel">
-    <button class="modal-close" onclick="closeDashModal()">✕</button>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem">
-      <div class="auth-avatar" id="dash-avatar">?</div>
-      <div>
-        <div style="font-size:14px;font-weight:600" id="dash-email-display">user@email.com</div>
-        <div style="font-size:11px;color:var(--muted)">Housing Tracker Account</div>
-      </div>
-      <button onclick="signOut()" style="margin-left:auto;background:none;border:0.5px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:var(--font-sans)">Sign Out</button>
-    </div>
-    <div class="dash-tabs">
-      <button class="dash-tab active" onclick="switchTab('favs')">❤ Saved Cities</button>
-      <button class="dash-tab" onclick="switchTab('notes')">📝 Notes</button>
-      <button class="dash-tab" onclick="switchTab('alerts')">🔔 Price Alerts</button>
-      <button class="dash-tab" onclick="switchTab('bookmarks')">🔖 Listings</button>
-    </div>
-    <div id="tab-favs" class="dash-section active">
-      <div id="favs-list"><div class="empty-state"><span class="empty-icon">🏙</span>No saved cities yet.<br>Search a city and click ♡ Save City.</div></div>
-    </div>
-    <div id="tab-notes" class="dash-section">
-      <div id="notes-list"><div class="empty-state"><span class="empty-icon">📝</span>No notes yet.<br>Search a city and click 📝 Add Note.</div></div>
-    </div>
-    <div id="tab-alerts" class="dash-section">
-      <div id="alerts-list"><div class="empty-state"><span class="empty-icon">🔔</span>No price alerts yet.<br>Search a city and click 🔔 Price Alert.</div></div>
-    </div>
-    <div id="tab-bookmarks" class="dash-section">
-      <div id="bookmarks-list"><div class="empty-state"><span class="empty-icon">🔖</span>No bookmarked listings yet.<br>Click 🔖 on any listing card.</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ── NOTE MODAL ── -->
-<div class="modal-overlay" id="note-modal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeNoteModal()">✕</button>
-    <div style="font-family:var(--font-mono);font-size:15px;font-weight:700;margin-bottom:4px">📝 Note</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="note-modal-city">City name</div>
-    <textarea class="note-area" id="note-text" placeholder="Write your notes about this city…"></textarea>
-    <button class="note-save-btn" onclick="saveNote()">Save Note</button>
-  </div>
-</div>
 
 <script>
   // ── City list for autocomplete ──────────────────────────────────────────────
@@ -2295,262 +2169,6 @@
   loadNational();
   setInterval(loadNational, 3600000);
   renderAffordable('all');
-
-  // ── SUPABASE AUTH ─────────────────────────────────────────────────────────
-  // Replace these with your actual Supabase project URL and anon key
-  // Get them from: https://supabase.com → your project → Settings → API
-  const SUPABASE_URL  = 'https://sohpbjifvxjwapwxoiis.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvaHBiamlmdnhqd2Fwd3hvaWlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDUwMjgsImV4cCI6MjA4OTI4MTAyOH0.1wc8tlnScCx98gjCGZYOYuofGjCpJylnZ7JUbahXbkU';
-
-  let _supabase = null;
-  let _user = null;
-  let _userData = { favs:[], notes:{}, alerts:[], bookmarks:[] };
-
-  function initSupabase() {
-    if (typeof supabase === 'undefined') return;
-    _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    _supabase.auth.onAuthStateChange(async (event, session) => {
-      _user = session?.user || null;
-      updateAuthUI();
-      if (_user) await loadUserData();
-    });
-    _supabase.auth.getSession().then(({ data }) => {
-      _user = data?.session?.user || null;
-      updateAuthUI();
-      if (_user) loadUserData();
-    });
-  }
-
-  function updateAuthUI() {
-    const btn = document.getElementById('auth-btn');
-    const label = document.getElementById('auth-btn-label');
-    if (_user) {
-      const initials = (_user.email || '?')[0].toUpperCase();
-      btn.className = 'auth-btn signed-in';
-      btn.onclick = openDashModal;
-      btn.innerHTML = `<div class="auth-avatar">${initials}</div><span>${_user.email.split('@')[0]}</span>`;
-    } else {
-      btn.className = 'auth-btn';
-      btn.onclick = openAuthModal;
-      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Sign In</span>`;
-    }
-    // Show/hide city save bar
-    const cityName = currentCity?.name;
-    const bar = document.getElementById('city-save-bar');
-    if (_user && cityName) {
-      bar.classList.add('visible');
-      syncSaveBarState(cityName);
-    } else {
-      bar.classList.remove('visible');
-    }
-  }
-
-  // ── Auth modal ──
-  function openAuthModal() {
-    if (_user) { openDashModal(); return; }
-    document.getElementById('auth-modal').classList.add('open');
-    document.getElementById('auth-email').focus();
-    document.getElementById('auth-msg').className = 'auth-msg';
-    document.getElementById('auth-form-wrap').style.display = 'block';
-  }
-  function closeAuthModal() { document.getElementById('auth-modal').classList.remove('open'); }
-
-  async function sendMagicLink() {
-    if (!_supabase || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-      showAuthMsg('error', '⚠ Supabase not configured yet. See setup instructions.');
-      return;
-    }
-    const email = document.getElementById('auth-email').value.trim();
-    if (!email || !email.includes('@')) { showAuthMsg('error', 'Please enter a valid email.'); return; }
-    const btn = document.getElementById('auth-submit-btn');
-    btn.disabled = true; btn.textContent = 'Sending…';
-    const { error } = await _supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href } });
-    btn.disabled = false; btn.textContent = 'Send Magic Link ✉';
-    if (error) { showAuthMsg('error', error.message); return; }
-    showAuthMsg('success', '✅ Magic link sent! Check your email and click the link to sign in.');
-    document.getElementById('auth-form-wrap').style.display = 'none';
-  }
-  function showAuthMsg(type, msg) {
-    const el = document.getElementById('auth-msg');
-    el.className = 'auth-msg ' + type;
-    el.textContent = msg;
-  }
-
-  async function signOut() {
-    if (_supabase) await _supabase.auth.signOut();
-    _user = null; _userData = { favs:[], notes:{}, alerts:[], bookmarks:[] };
-    updateAuthUI();
-    closeDashModal();
-  }
-
-  // ── Dashboard modal ──
-  function openDashModal() {
-    if (!_user) { openAuthModal(); return; }
-    document.getElementById('dash-modal').classList.add('open');
-    document.getElementById('dash-email-display').textContent = _user.email;
-    document.getElementById('dash-avatar').textContent = (_user.email||'?')[0].toUpperCase();
-    renderDashboard();
-  }
-  function closeDashModal() { document.getElementById('dash-modal').classList.remove('open'); }
-
-  function switchTab(tab) {
-    document.querySelectorAll('.dash-tab').forEach((t,i) => t.classList.toggle('active', ['favs','notes','alerts','bookmarks'][i] === tab));
-    document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
-    document.getElementById('tab-'+tab).classList.add('active');
-  }
-
-  function renderDashboard() {
-    // Favourites
-    const fl = document.getElementById('favs-list');
-    fl.innerHTML = _userData.favs.length ? _userData.favs.map(city => `
-      <div class="fav-item">
-        <span class="fav-item-name" onclick="selectCityFromDash('${city}')">${city}</span>
-        <button class="fav-remove" onclick="removeFav('${city}')" title="Remove">✕</button>
-      </div>`).join('') : '<div class="empty-state"><span class="empty-icon">🏙</span>No saved cities yet.</div>';
-
-    // Notes
-    const nl = document.getElementById('notes-list');
-    const noteEntries = Object.entries(_userData.notes);
-    nl.innerHTML = noteEntries.length ? noteEntries.map(([city, note]) => `
-      <div style="margin-bottom:12px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600">${city}</div>
-        <div style="font-size:13px;background:var(--surface2);padding:10px;border-radius:8px;line-height:1.5">${note}</div>
-        <button class="fav-remove" onclick="removeNote('${city}')" style="margin-top:4px;font-size:11px">Remove note</button>
-      </div>`).join('') : '<div class="empty-state"><span class="empty-icon">📝</span>No notes yet.</div>';
-
-    // Alerts
-    const al = document.getElementById('alerts-list');
-    al.innerHTML = _userData.alerts.length ? _userData.alerts.map(city => `
-      <div class="alert-row">
-        <span style="flex:1">${city}</span>
-        <span class="alert-badge">🔔 Active</span>
-        <button class="fav-remove" onclick="removeAlert('${city}')">✕</button>
-      </div>`).join('') : '<div class="empty-state"><span class="empty-icon">🔔</span>No price alerts yet.</div>';
-
-    // Bookmarks
-    const bl = document.getElementById('bookmarks-list');
-    bl.innerHTML = _userData.bookmarks.length ? _userData.bookmarks.map(b => `
-      <div class="fav-item">
-        <div style="flex:1">
-          <div style="font-weight:600;font-size:13px">${b.price || 'Price N/A'}</div>
-          <div style="font-size:11px;color:var(--muted)">${b.address || 'Address'}</div>
-        </div>
-        <a href="${b.url||'#'}" target="_blank" style="font-size:11px;color:var(--blue);margin-right:8px">View ↗</a>
-        <button class="fav-remove" onclick="removeBookmark('${b.id}')">✕</button>
-      </div>`).join('') : '<div class="empty-state"><span class="empty-icon">🔖</span>No bookmarked listings yet.</div>';
-  }
-
-  function selectCityFromDash(cityName) {
-    closeDashModal();
-    document.getElementById('search-input').value = cityName;
-    selectCity(cityName);
-  }
-
-  // ── User data CRUD ──
-  async function loadUserData() {
-    if (!_supabase || !_user) return;
-    try {
-      const { data } = await _supabase.from('user_data').select('data').eq('user_id', _user.id).single();
-      if (data?.data) _userData = { favs:[], notes:{}, alerts:[], bookmarks:[], ...data.data };
-    } catch { /* new user — no data yet */ }
-    updateAuthUI();
-  }
-
-  async function saveUserData() {
-    if (!_supabase || !_user) return;
-    await _supabase.from('user_data').upsert({ user_id: _user.id, data: _userData, updated_at: new Date().toISOString() });
-  }
-
-  // Fav cities
-  async function toggleFavCity() {
-    if (!_user) { openAuthModal(); return; }
-    const city = currentCity?.name; if (!city) return;
-    const idx = _userData.favs.indexOf(city);
-    if (idx === -1) _userData.favs.push(city); else _userData.favs.splice(idx, 1);
-    syncSaveBarState(city);
-    await saveUserData();
-    renderDashboard();
-  }
-  function removeFav(city) { _userData.favs = _userData.favs.filter(f=>f!==city); saveUserData(); renderDashboard(); }
-
-  // Notes
-  function openNoteModal() {
-    if (!_user) { openAuthModal(); return; }
-    const city = currentCity?.name; if (!city) return;
-    document.getElementById('note-modal-city').textContent = city;
-    document.getElementById('note-text').value = _userData.notes[city] || '';
-    document.getElementById('note-modal').classList.add('open');
-  }
-  function closeNoteModal() { document.getElementById('note-modal').classList.remove('open'); }
-  async function saveNote() {
-    const city = currentCity?.name; if (!city) return;
-    const text = document.getElementById('note-text').value.trim();
-    if (text) _userData.notes[city] = text; else delete _userData.notes[city];
-    closeNoteModal();
-    await saveUserData();
-    renderDashboard();
-    const btn = document.getElementById('btn-note-city');
-    btn.textContent = text ? '📝 Note Saved ✓' : '📝 Add Note';
-    btn.classList.toggle('saved', !!text);
-  }
-  function removeNote(city) { delete _userData.notes[city]; saveUserData(); renderDashboard(); }
-
-  // Price alerts
-  async function toggleAlert() {
-    if (!_user) { openAuthModal(); return; }
-    const city = currentCity?.name; if (!city) return;
-    const idx = _userData.alerts.indexOf(city);
-    if (idx === -1) _userData.alerts.push(city); else _userData.alerts.splice(idx, 1);
-    syncSaveBarState(city);
-    await saveUserData();
-    renderDashboard();
-  }
-  function removeAlert(city) { _userData.alerts = _userData.alerts.filter(a=>a!==city); saveUserData(); renderDashboard(); }
-
-  // Bookmarks (called from listing cards)
-  async function bookmarkListing(id, price, address, url) {
-    if (!_user) { openAuthModal(); return; }
-    const exists = _userData.bookmarks.find(b=>b.id===id);
-    if (exists) {
-      _userData.bookmarks = _userData.bookmarks.filter(b=>b.id!==id);
-    } else {
-      _userData.bookmarks.push({ id, price, address, url, saved_at: new Date().toISOString() });
-    }
-    await saveUserData();
-    renderDashboard();
-    // Update bookmark button UI
-    document.querySelectorAll(`[data-bookmark-id="${id}"]`).forEach(btn => {
-      btn.classList.toggle('bookmarked', !exists);
-      btn.textContent = !exists ? '🔖 Saved' : '🔖 Save';
-    });
-  }
-  function removeBookmark(id) { _userData.bookmarks = _userData.bookmarks.filter(b=>b.id!==id); saveUserData(); renderDashboard(); }
-
-  function syncSaveBarState(city) {
-    const favBtn = document.getElementById('btn-fav-city');
-    const alertBtn = document.getElementById('btn-alert-city');
-    const noteBtn = document.getElementById('btn-note-city');
-    if (favBtn) { const isFav = _userData.favs.includes(city); favBtn.textContent = isFav ? '❤ Saved' : '♡ Save City'; favBtn.classList.toggle('saved', isFav); }
-    if (alertBtn) { const isAlert = _userData.alerts.includes(city); alertBtn.textContent = isAlert ? '🔔 Alert On' : '🔔 Price Alert'; alertBtn.classList.toggle('alerted', isAlert); }
-    if (noteBtn) { const hasNote = !!_userData.notes[city]; noteBtn.textContent = hasNote ? '📝 Edit Note' : '📝 Add Note'; noteBtn.classList.toggle('saved', hasNote); }
-  }
-
-  // Show save bar when city loaded
-  const _origRender = render;
-  function render(d, cityName, cityCountry) {
-    _origRender(d, cityName, cityCountry);
-    const bar = document.getElementById('city-save-bar');
-    if (_user && cityName) { bar.classList.add('visible'); syncSaveBarState(cityName); }
-    else { bar.classList.remove('visible'); }
-  }
-
-  // Close modals on overlay click
-  document.getElementById('auth-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeAuthModal(); });
-  document.getElementById('dash-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeDashModal(); });
-  document.getElementById('note-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeNoteModal(); });
-
-  // Init
-  initSupabase();
 </script>
 </body>
 </html>
