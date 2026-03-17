@@ -1243,39 +1243,36 @@
     if (!places || !places.length) {
       grid.innerHTML = `<div class="explore-empty">
         <div style="font-size:28px;margin-bottom:8px">${cat==='restaurant'?'🍽':cat==='park'?'🌳':cat==='shop'?'🛍':'🏛'}</div>
-        <div>Loading nearby ${cat}s… this may take a few seconds.</div>
+        <div>Loading nearby ${cat}s…</div>
         <div style="margin-top:8px"><a href="https://www.google.com/maps/search/${encodeURIComponent(cat+'s near '+_exploreCity)}" target="_blank" style="color:var(--blue);font-size:12px">Search on Google Maps ↗</a></div>
       </div>`;
       return;
     }
     grid.innerHTML = places.map(p => {
-      const distStr = p.dist != null ? (p.dist < 1 ? Math.round(p.dist*1000)+'m' : p.dist.toFixed(1)+'km') : '';
-      const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(p.name)}/@${p.lat},${p.lng},15z`;
-      const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-      const extra   = p.cuisine ? `<div class="place-dist" style="margin-top:2px">🍴 ${p.cuisine.replace(/;/g,', ')}</div>` : '';
-      const hours   = p.opening_hours ? `<div class="place-dist" style="margin-top:2px">🕐 ${p.opening_hours.split(';')[0]}</div>` : '';
-      const wikiImg = p.wikipedia ? getWikiImage(p.wikipedia) : null;
+      const distStr  = p.dist != null ? (p.dist < 1 ? Math.round(p.dist*1000)+'m' : p.dist.toFixed(1)+'km') : '';
+      const mapsUrl  = `https://www.google.com/maps/search/${encodeURIComponent(p.name)}/@${p.lat},${p.lng},15z`;
+      const navUrl   = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+      const cuisine  = p.cuisine ? `<div class="place-dist" style="margin-top:2px">🍴 ${p.cuisine.replace(/;/g,', ')}</div>` : '';
+      const hours    = p.opening_hours ? `<div class="place-dist" style="margin-top:2px">🕐 ${p.opening_hours.split(';')[0]}</div>` : '';
+      const icon     = p.icon || (cat==='restaurant'?'🍽':cat==='park'?'🌳':cat==='shop'?'🛍':'📍');
+      const imgHtml  = p.image
+        ? `<img class="place-photo" src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
       return `<div class="place-card">
-        <img class="place-photo" src="${wikiImg||''}" alt="${p.name}" loading="lazy"
-          style="${wikiImg?'':'display:none'}"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="place-photo-placeholder" style="${wikiImg?'display:none':''}">
-          ${p.icon||'📍'}
-        </div>
+        ${imgHtml}
+        <div class="place-photo-placeholder" style="${p.image?'display:none':''}">${icon}</div>
         <div class="place-body">
           <div class="place-name">${p.name}</div>
           <div class="place-type">${(p.type||cat).replace(/_/g,' ')}</div>
           ${distStr ? `<div class="place-dist">📍 ${distStr} away</div>` : ''}
-          ${extra}${hours}
+          ${cuisine}${hours}
           <div class="place-actions">
             <a class="place-btn place-btn-map" href="${mapsUrl}" target="_blank">🗺 Map</a>
-            <a class="place-btn place-btn-nav" href="${navUrl}" target="_blank">🧭 Go</a>
+            <a class="place-btn place-btn-nav" href="${navUrl}" target="_blank">🧭 Directions</a>
           </div>
         </div>
       </div>`;
     }).join('');
-    // Lazy-load wiki images
-    places.forEach(p => { if (p.wikipedia) getWikiImage(p.wikipedia, p.name); });
   }
 
   const _wikiImgCache = {};
@@ -1313,8 +1310,20 @@
     const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
-  function renderPriceTrend(hpiHistory) {
-    if (!hpiHistory || hpiHistory.length < 2) return;
+  function renderPriceTrend(hpiHistory, cityName, isCA) {
+    const noData = !hpiHistory || hpiHistory.length < 2;
+    if (noData) {
+      document.getElementById('trend-price').textContent = 'No HPI data';
+      document.getElementById('trend-price').style.fontSize = '16px';
+      document.getElementById('trend-delta').textContent = isCA
+        ? 'HPI available for major CA metros only'
+        : 'HPI available for major US metros only';
+      document.getElementById('trend-delta').style.color = 'var(--muted)';
+      document.getElementById('trend-svg').innerHTML = `
+        <text x="150" y="50" text-anchor="middle" fill="rgba(255,255,255,0.12)" font-size="11" font-family="monospace">No chart data for this city</text>`;
+      document.getElementById('trend-from').textContent = '';
+      return;
+    }
     const vals = hpiHistory.map(p => p.value).filter(v => v !== null);
     if (vals.length < 2) return;
     const min = Math.min(...vals), max = Math.max(...vals);
@@ -1336,10 +1345,10 @@
         <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
       </linearGradient></defs>
       <polygon points="${areaPoints}" fill="url(#chartGrad)"/>
-      <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
-    `;
+      <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
     document.getElementById('trend-price').textContent = 'HPI ' + latest.toFixed(0);
-    document.getElementById('trend-delta').textContent = (pctChange >= 0 ? '+' : '') + pctChange + '% vs ' + hpiHistory[0].date.slice(0, 7);
+    document.getElementById('trend-price').style.fontSize = '';
+    document.getElementById('trend-delta').textContent = (pctChange >= 0 ? '+' : '') + pctChange + '% over ' + hpiHistory.length + ' quarters';
     document.getElementById('trend-delta').style.color = color;
     document.getElementById('trend-from').textContent = hpiHistory[0].date.slice(0, 7);
   }
@@ -1559,8 +1568,8 @@
       lastUpdated = j.updated ? new Date(j.updated) : new Date();
       setPulse('live','Live data — '+j.city);
       render(j.data, j.city, j.country);
-      // Show/hide city widgets already handled inside render()
-      if (j.data?.raw?.hpiHistory) renderPriceTrend(j.data.raw.hpiHistory);
+      // Always render price trend (shows no-data message if no HPI)
+      renderPriceTrend(j.data?.raw?.hpiHistory, j.city, j.country === 'ca');
       // Show estimated data disclaimer for small cities
       const estNote = document.getElementById('estimated-note');
       if (estNote) estNote.style.display = j.estimated ? 'block' : 'none';
