@@ -1402,10 +1402,14 @@ function renderCalendar(events) {
         const foreNum = parseFloat((e.forecast||'').replace('%','').replace('K','').replace('M',''));
         let actColor = 'var(--text)';
         if (!isNaN(actNum) && !isNaN(foreNum) && foreNum !== 0) {
-          // Lower is better for inflation/CPI/PPI/claims, higher is better for GDP/PMI/sentiment
-          const lowerIsBetter = ['cpi','ppi','inflation','claims','unemployment'].some(k => e.title.toLowerCase().includes(k));
-          const beats = lowerIsBetter ? actNum < foreNum : actNum > foreNum;
-          actColor = beats ? '#4ade80' : '#f87171';
+          // Compare actual vs previous: green if actual > previous, red if actual < previous
+          // Exception: for inflation/claims/unemployment, lower than previous is green
+          const lowerIsBetter = ['cpi','ppi','inflation','claims','unemployment','delinquency'].some(k => e.title.toLowerCase().includes(k));
+          const prevNum = parseFloat((e.previous||'').replace('%','').replace('K','').replace('M',''));
+          if (!isNaN(actNum) && !isNaN(prevNum) && prevNum !== 0) {
+            const improvedVsPrev = lowerIsBetter ? actNum < prevNum : actNum > prevNum;
+            actColor = improvedVsPrev ? '#4ade80' : '#f87171';
+          }
         }
         actualHtml = `<span class="cal-num" style="color:${actColor};font-weight:600">${e.actual}</span>`;
       }
