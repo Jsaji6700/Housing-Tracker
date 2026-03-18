@@ -109,7 +109,7 @@ export default async function handler(req, res) {
       { id:'ICSA',            key:'claims',   lim:1, fmt:(v)  => Math.round(v/1000)+'K'              },
       { id:'PERMIT',          key:'permits',  lim:1, fmt:(v)  => (v/1000).toFixed(2)+'M'             },
       { id:'EXHOSLUSM495S',   key:'exist_homes',lim:1,fmt:(v) => (v/1000).toFixed(2)+'M'             },
-      { id:'NAPM',            key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        }, // ISM Mfg PMI
+      { id:'NAPM',            key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        },
       { id:'TOTALSA',         key:'construction',lim:2,fmt:(v,p)=>p?((v-p)/p*100).toFixed(2)+'%':'' },
     ];
     await Promise.allSettled(FRED_SERIES.map(async ({ id, key, lim, fmt }) => {
@@ -130,43 +130,43 @@ export default async function handler(req, res) {
     }));
   }
 
-  // ── Statistics Canada (CAD actuals) ──────────────────────────────────────
-  // StatsCan Web Data Service — vector IDs for key series
+  // ── Statistics Canada (CAD actuals) via POST endpoint ────────────────────
   try {
     const scSeries = [
-      { id:'v41690973',  key:'cad_cpi',      fmt:'mom' },  // CPI All-items
-      { id:'v41692043',  key:'cad_core_cpi', fmt:'mom' },  // CPI ex food & energy
-      { id:'v62305752',  key:'cad_gdp',      fmt:'mom' },  // Real GDP monthly
-      { id:'v52367074',  key:'cad_retail',   fmt:'mom' },  // Retail trade
-      { id:'v2062815',   key:'cad_employ',   fmt:'chg' },  // Employment ('000s)
+      { id: 41690973,  key:'cad_cpi',      fmt:'mom' },
+      { id: 41692043,  key:'cad_core_cpi', fmt:'mom' },
+      { id: 62305752,  key:'cad_gdp',      fmt:'mom' },
+      { id: 52367074,  key:'cad_retail',   fmt:'mom' },
+      { id: 2062815,   key:'cad_employ',   fmt:'chg' },
     ];
-    await Promise.allSettled(scSeries.map(async ({ id, key, fmt }) => {
-      try {
-        const r = await fetch(
-          `https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods/${id};10`,
-          { headers:{ 'Accept':'application/json', 'User-Agent':'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) }
-        );
-        if (!r.ok) throw new Error(`StatsCan ${r.status}`);
-        if (!r.ok) return;
-        const j = await r.json();
-        // StatsCan returns array of objects or nested structure
-        const obj = Array.isArray(j) ? j[0] : j?.object || j;
-        const pts = obj?.vectorDataPoint || obj?.data || [];
+    const scR = await fetch(
+      'https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(scSeries.map(s => ({ vectorId: s.id, latestN: 3 }))),
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+    if (scR.ok) {
+      const scJ = await scR.json();
+      const results = Array.isArray(scJ) ? scJ : [];
+      results.forEach((obj, i) => {
+        const series = scSeries[i];
+        if (!series) return;
+        const pts = obj?.vectorDataPoint || [];
         if (pts.length < 2) return;
-        // Sort by refPer to get latest
-        const sorted = [...pts].sort((a,b) => (a.refPer||a.period||'').localeCompare(b.refPer||b.period||''));
-        const latest = sorted[sorted.length-1];
-        const second = sorted[sorted.length-2];
-        const cur  = parseFloat(latest?.value);
-        const prev = parseFloat(second?.value);
+        const sorted = [...pts].sort((a,b) => (a.refPer||'').localeCompare(b.refPer||''));
+        const cur  = parseFloat(sorted[sorted.length-1]?.value);
+        const prev = parseFloat(sorted[sorted.length-2]?.value);
         if (isNaN(cur)||isNaN(prev)||prev===0) return;
-        const refDate = latest?.refPer || latest?.period || '';
-        const ageDays = refDate ? (now - new Date(refDate.length===7 ? refDate+'-01' : refDate)) / 86400000 : 999;
-        if (ageDays > 60) return;
-        if (fmt === 'mom') A[key] = ((cur-prev)/prev*100).toFixed(2)+'%';
-        if (fmt === 'chg') A[key] = (cur-prev > 0 ? '+' : '') + Math.round((cur-prev)*1000)+'K';
-      } catch {}
-    }));
+        const refDate = sorted[sorted.length-1]?.refPer || '';
+        const ageDays = refDate ? (now - new Date(refDate.length===7?refDate+'-01':refDate)) / 86400000 : 999;
+        if (ageDays > 65) return;
+        if (series.fmt==='mom') A[series.key] = ((cur-prev)/prev*100).toFixed(2)+'%';
+        if (series.fmt==='chg') A[series.key] = (cur-prev>0?'+':'')+Math.round((cur-prev)*1000)+'K';
+      });
+    }
   } catch { /* optional */ }
 
   // ── Only show actual for past events (≥10am ET for today) ────────────────
