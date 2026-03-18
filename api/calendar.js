@@ -99,7 +99,8 @@ export default async function handler(req, res) {
       { id:'ICSA',            key:'claims',   lim:1,  fmt: v => Math.round(v/1000)+'K' }, // Initial claims
       // Monthly index series — calculate m/m % change (need 2 obs)
       { id:'CPILFESL',        key:'core_cpi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'CPIAUCSL',        key:'cpi',      lim:13, fmt:(v,p,all)=> all?.length>=13 ? ((v-parseFloat(all[12].value))/parseFloat(all[12].value)*100).toFixed(1)+'%' : '' },
+      // CPIAUCSL_PC1 = CPI y/y % change series (pre-calculated by FRED, no math needed)
+      { id:'CPIAUCSL_PC1',     key:'cpi',      lim:1,  fmt:(v)=> v.toFixed(1)+'%' },
       { id:'PPIACO',          key:'ppi',      lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
       { id:'PPIFIS',          key:'core_ppi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
       { id:'PCEPILFE',        key:'core_pce', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
@@ -119,7 +120,7 @@ export default async function handler(req, res) {
         // Weekly series (claims): must be within 10 days
         // Monthly series: within 50 days (monthly data releases ~3-4 weeks after period)
         // Quarterly (GDP): within 100 days
-        const maxAge = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 50;
+        const maxAge = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 60;
         if (ageDays > maxAge) return;
 
         const cur  = parseFloat(obs[0].value);
