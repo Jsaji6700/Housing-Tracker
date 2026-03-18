@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   // ── Source 1: Yahoo Finance (no key, reliable server-side) ───────────────
   try {
-    const symbols = { gold: 'GC%3DF', silver: 'SI%3DF', platinum: 'PL%3DF' };
+    const symbols = { gold: 'XAUUSD%3DX', silver: 'XAGUSD%3DX', platinum: 'XPTUSD%3DX', sp500: '%5EGSPC', dji: '%5EDJI' };
     const results = await Promise.allSettled(
       Object.entries(symbols).map(async ([name, sym]) => {
         const r = await fetch(
@@ -30,9 +30,11 @@ export default async function handler(req, res) {
 
     if (data.gold?.price && data.gold.price > 500) {
       return res.status(200).json({
-        gold:     { price: Math.round(data.gold.price),                         open: data.gold.open     || null, currency: 'USD', source: 'yahoo' },
+        gold:     { price: Math.round(data.gold.price),                                open: data.gold.open     || null, currency: 'USD', source: 'yahoo' },
         silver:   { price: data.silver   ? parseFloat(data.silver.price.toFixed(2))   : 0, open: data.silver?.open   || null, currency: 'USD', source: 'yahoo' },
         platinum: { price: data.platinum ? Math.round(data.platinum.price)             : 0, open: data.platinum?.open || null, currency: 'USD', source: 'yahoo' },
+        sp500:    { price: data.sp500    ? Math.round(data.sp500.price)                : 0, open: data.sp500?.open    || null, source: 'yahoo' },
+        dji:      { price: data.dji      ? Math.round(data.dji.price)                  : 0, open: data.dji?.open      || null, source: 'yahoo' },
       });
     }
   } catch { /* try next */ }
