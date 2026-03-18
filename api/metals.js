@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   // ── Source 1: Yahoo Finance (no key, reliable server-side) ───────────────
   try {
-    const symbols = { gold: 'XAUUSD%3DX', silver: 'XAGUSD%3DX', platinum: 'XPTUSD%3DX', sp500: '%5EGSPC', dji: '%5EDJI' };
+    const symbols = { gold: 'GC%3DF', silver: 'SI%3DF', platinum: 'PL%3DF', sp500: '%5EGSPC', dji: '%5EDJI' };
     const results = await Promise.allSettled(
       Object.entries(symbols).map(async ([name, sym]) => {
         const r = await fetch(
@@ -28,10 +28,10 @@ export default async function handler(req, res) {
     const data = {};
     results.forEach(r => { if (r.status === 'fulfilled') data[r.value.name] = r.value; });
 
-    if (data.gold?.price && data.gold.price > 500) {
+    if (data.gold?.price && data.gold.price > 3000 && data.gold.price < 8000) {
       return res.status(200).json({
         gold:     { price: Math.round(data.gold.price),                                open: data.gold.open     || null, currency: 'USD', source: 'yahoo' },
-        silver:   { price: data.silver   ? parseFloat(data.silver.price.toFixed(2))   : 0, open: data.silver?.open   || null, currency: 'USD', source: 'yahoo' },
+        silver:   { price: (data.silver && data.silver.price > 40 && data.silver.price < 150) ? parseFloat(data.silver.price.toFixed(2)) : 0, open: data.silver?.open || null, currency: 'USD', source: 'yahoo' },
         platinum: { price: data.platinum ? Math.round(data.platinum.price)             : 0, open: data.platinum?.open || null, currency: 'USD', source: 'yahoo' },
         sp500:    { price: data.sp500    ? Math.round(data.sp500.price)                : 0, open: data.sp500?.open    || null, source: 'yahoo' },
         dji:      { price: data.dji      ? Math.round(data.dji.price)                  : 0, open: data.dji?.open      || null, source: 'yahoo' },
@@ -67,11 +67,27 @@ export default async function handler(req, res) {
     const r = await fetch('https://api.metals.live/v1/spot', { signal: AbortSignal.timeout(6000) });
     if (r.ok) {
       const j = await r.json();
-      if (j?.gold && j.gold > 500) {
+      if (j?.gold && j.gold > 3000 && j.gold < 8000) {
+        // Also fetch equities separately since metals.live doesn't have them
+        const eq = { sp500: { price: 0 }, dji: { price: 0 } };
+        try {
+          const [spR, djR] = await Promise.all([
+            fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=2d', { signal: AbortSignal.timeout(4000) }),
+            fetch('https://query2.finance.yahoo.com/v8/finance/chart/%5EDJI?interval=1d&range=2d',  { signal: AbortSignal.timeout(4000) }),
+          ]);
+          const spJ = await spR.json();
+          const djJ = await djR.json();
+          const spMeta = spJ?.chart?.result?.[0]?.meta;
+          const djMeta = djJ?.chart?.result?.[0]?.meta;
+          if (spMeta?.regularMarketPrice) eq.sp500 = { price: spMeta.regularMarketPrice, open: spMeta.chartPreviousClose };
+          if (djMeta?.regularMarketPrice) eq.dji   = { price: djMeta.regularMarketPrice, open: djMeta.chartPreviousClose };
+        } catch {}
         return res.status(200).json({
-          gold:     { price: Math.round(j.gold),                        open: null, currency: 'USD', source: 'metals.live' },
-          silver:   { price: parseFloat((j.silver || 0).toFixed(2)),    open: null, currency: 'USD', source: 'metals.live' },
-          platinum: { price: Math.round(j.platinum || 0),               open: null, currency: 'USD', source: 'metals.live' },
+          gold:     { price: Math.round(j.gold),                     open: null, currency: 'USD', source: 'metals.live' },
+          silver:   { price: parseFloat((j.silver || 0).toFixed(2)), open: null, currency: 'USD', source: 'metals.live' },
+          platinum: { price: Math.round(j.platinum || 0),            open: null, currency: 'USD', source: 'metals.live' },
+          sp500:    eq.sp500,
+          dji:      eq.dji,
         });
       }
     }
