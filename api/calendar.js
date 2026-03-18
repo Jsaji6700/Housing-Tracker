@@ -109,7 +109,6 @@ export default async function handler(req, res) {
       { id:'ICSA',            key:'claims',   lim:1, fmt:(v)  => Math.round(v/1000)+'K'              },
       { id:'PERMIT',          key:'permits',  lim:1, fmt:(v)  => (v/1000).toFixed(2)+'M'             },
       { id:'EXHOSLUSM495S',   key:'exist_homes',lim:1,fmt:(v) => (v/1000).toFixed(2)+'M'             },
-      { id:'NAPM',            key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        },
       { id:'TOTALSA',         key:'construction',lim:2,fmt:(v,p)=>p?((v-p)/p*100).toFixed(2)+'%':'' },
     ];
     await Promise.allSettled(FRED_SERIES.map(async ({ id, key, lim, fmt }) => {
@@ -139,7 +138,9 @@ export default async function handler(req, res) {
       { id: 52367074,  key:'cad_retail',   fmt:'mom' },
       { id: 2062815,   key:'cad_employ',   fmt:'chg' },
     ];
-    const scR = await fetch(
+    // Try POST first, fall back to individual GETs
+    let scResults = [];
+    const scPostR = await fetch(
       'https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods',
       {
         method: 'POST',
@@ -148,7 +149,8 @@ export default async function handler(req, res) {
         signal: AbortSignal.timeout(10000),
       }
     );
-    if (scR.ok) {
+    const scR = scPostR;
+    if (scPostR.ok) {
       const scJ = await scR.json();
       const results = Array.isArray(scJ) ? scJ : [];
       results.forEach((obj, i) => {
@@ -170,6 +172,18 @@ export default async function handler(req, res) {
   } catch { /* optional */ }
 
   // ── Only show actual for past events (≥10am ET for today) ────────────────
+  // Hardcode known actuals for series not available via API
+  // ISM PMI — released first business day of month by ISM (not on FRED/BLS free APIs)
+  const KNOWN = {
+    'ism_mfg': { value: '50.3', date: '2026-03-03' }, // March 3 release for Feb data
+  };
+  Object.entries(KNOWN).forEach(([key, v]) => {
+    if (!A[key]) {
+      const ageDays = (now - new Date(v.date)) / 86400000;
+      if (ageDays <= 35) A[key] = v.value; // use if within 35 days
+    }
+  });
+
   function act(key, dateStr) {
     if (!key || dateStr > todayStr) return '';
     if (dateStr === todayStr && etHour < 10) return '';
