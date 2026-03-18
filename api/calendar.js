@@ -1,4 +1,4 @@
-// api/calendar.js — economic calendar with actuals from FRED
+// api/calendar.js — economic calendar with actuals from BLS + FRED + StatsCan
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -7,60 +7,26 @@ export default async function handler(req, res) {
   const isNext = req.query.week === 'next';
   const ffFile = isNext ? 'nextweek' : 'thisweek';
 
-  // ── Try ForexFactory with multiple approaches ────────────────────────────
+  // ── Try ForexFactory (4 attempts) ────────────────────────────────────────
   const FF_ATTEMPTS = [
-    // Attempt 1: standard FF headers
-    {
-      url: `https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.forexfactory.com/calendar',
-        'Origin': 'https://www.forexfactory.com',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'cross-site',
-      }
-    },
-    // Attempt 2: no version param
-    {
-      url: `https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Referer': 'https://www.forexfactory.com/',
-      }
-    },
-    // Attempt 3: via corsproxy (free CORS proxy as last resort)
-    {
-      url: `https://corsproxy.io/?${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
-      headers: { 'Accept': 'application/json' }
-    },
-    // Attempt 4: allorigins proxy
-    {
-      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
-      headers: { 'Accept': 'application/json' }
-    },
+    { url: `https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`,
+      headers: { 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept':'application/json','Referer':'https://www.forexfactory.com/','Origin':'https://www.forexfactory.com' } },
+    { url: `https://corsproxy.io/?${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
+      headers: { 'Accept':'application/json' } },
+    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json`)}`,
+      headers: { 'Accept':'application/json' } },
   ];
 
-  for (const attempt of FF_ATTEMPTS) {
+  for (const att of FF_ATTEMPTS) {
     try {
-      const r = await fetch(attempt.url, {
-        headers: attempt.headers,
-        signal: AbortSignal.timeout(8000),
-      });
+      const r = await fetch(att.url, { headers: att.headers, signal: AbortSignal.timeout(7000) });
       if (!r.ok) continue;
       const data = await r.json();
-      if (!Array.isArray(data) || data.length === 0) continue;
+      if (!Array.isArray(data) || !data.length) continue;
       const filtered = data
         .filter(e => ['USD','CAD'].includes(e.currency) && ['High','Medium'].includes(e.impact))
-        .map(e => ({
-          date: e.date||'', time: e.time||'All Day',
-          currency: e.currency, impact: e.impact,
-          title: e.title||'', forecast: e.forecast||'',
-          previous: e.previous||'', actual: e.actual||'',
-        }));
+        .map(e => ({ date:e.date||'', time:e.time||'All Day', currency:e.currency, impact:e.impact,
+                     title:e.title||'', forecast:e.forecast||'', previous:e.previous||'', actual:e.actual||'' }));
       if (filtered.length > 0) {
         return res.status(200).json({ events: filtered, count: filtered.length, source: 'forexfactory.com' });
       }
@@ -75,8 +41,9 @@ export default async function handler(req, res) {
   baseMon.setUTCDate(now.getUTCDate() + daysToMon + (isNext ? 7 : 0));
   baseMon.setUTCHours(0, 0, 0, 0);
 
-  const todayStr = new Date(now.getTime() - 5*3600000).toISOString().split('T')[0];
-  const etHour   = new Date(now.getTime() - 5*3600000).getUTCHours();
+  const etNow    = new Date(now.getTime() - 5*3600000);
+  const todayStr = etNow.toISOString().split('T')[0];
+  const etHour   = etNow.getUTCHours();
 
   function dayStr(off) {
     const d = new Date(baseMon);
@@ -84,119 +51,149 @@ export default async function handler(req, res) {
     return d.toISOString().split('T')[0];
   }
 
-  // ── Actuals: BLS (same-day) + FRED (backup) ─────────────────────────────
   const FRED_KEY = process.env.FRED_API_KEY || '';
   const A = {};
 
-  // BLS public API — updates same day as release, no key needed for basic access
-  // Series: CUSR0000SA0=CPI, CUSR0000SA0L1E=Core CPI, WPUFD4=PPI, PCU=Core PPI
+  // ── BLS API (USD — same-day releases) ────────────────────────────────────
   try {
-    const blsBody = JSON.stringify({
-      seriesid: ['CUSR0000SA0', 'CUSR0000SA0L1E', 'WPUFD49104', 'WPUFD4'],
-      startyear: (now.getFullYear() - 2).toString(),
-      endyear:   now.getFullYear().toString(),
-    });
     const blsR = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: blsBody,
+      body: JSON.stringify({
+        seriesid: [
+          'CUSR0000SA0',     // CPI All items
+          'CUSR0000SA0L1E',  // Core CPI (ex food & energy)
+          'WPUFD49104',      // Core PPI
+          'WPUFD4',          // PPI Final demand
+          'PCU',             // PPI alternative
+          'EIUIR',           // ISM Manufacturing (proxy)
+        ],
+        startyear: (now.getFullYear() - 1).toString(),
+        endyear:   now.getFullYear().toString(),
+      }),
       signal: AbortSignal.timeout(8000),
     });
     if (blsR.ok) {
       const blsJ = await blsR.json();
-      const series = blsJ?.Results?.series || [];
-
-      series.forEach(s => {
-        const data = (s.data || []).filter(d => d.value !== '-');
+      (blsJ?.Results?.series || []).forEach(s => {
+        const data = (s.data || []).filter(d => d.value !== '-' && d.value !== '');
         if (data.length < 2) return;
-        const latest = parseFloat(data[0].value);
-        const prev   = parseFloat(data[1].value);
-        const ageDays = (now - new Date(`${data[0].year}-${data[0].period.replace('M','')}-01`)) / 86400000;
+        const cur  = parseFloat(data[0].value);
+        const prev = parseFloat(data[1].value);
+        if (isNaN(cur) || isNaN(prev) || prev === 0) return;
+        const ageDays = (now - new Date(`${data[0].year}-${String(parseInt(data[0].period.replace('M',''))).padStart(2,'0')}-01`)) / 86400000;
         if (ageDays > 60) return;
-
+        const mom = ((cur - prev) / prev * 100).toFixed(2) + '%';
         if (s.seriesID === 'CUSR0000SA0') {
-          // CPI y/y: compare to same month last year
-          const yrAgo = data.find(d => parseInt(d.year) === now.getFullYear() - 1 && d.period === data[0].period);
-          if (yrAgo) A['cpi'] = ((latest - parseFloat(yrAgo.value)) / parseFloat(yrAgo.value) * 100).toFixed(1) + '%';
-          // CPI m/m
-          A['cpi_mom'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
+          A['cpi_mom'] = mom;
+          const yrAgo = data.find(d => parseInt(d.year) === parseInt(data[0].year) - 1 && d.period === data[0].period);
+          if (yrAgo) A['cpi_yoy'] = ((cur - parseFloat(yrAgo.value)) / parseFloat(yrAgo.value) * 100).toFixed(1) + '%';
         }
-        if (s.seriesID === 'CUSR0000SA0L1E') {
-          // Core CPI m/m
-          A['core_cpi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
-        }
-        if (s.seriesID === 'WPUFD49104') {
-          // Core PPI m/m
-          A['core_ppi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
-        }
-        if (s.seriesID === 'WPUFD4') {
-          // PPI m/m
-          A['ppi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
-        }
+        if (s.seriesID === 'CUSR0000SA0L1E') A['core_cpi'] = mom;
+        if (s.seriesID === 'WPUFD49104')     A['core_ppi'] = mom;
+        if (s.seriesID === 'WPUFD4')         A['ppi']      = mom;
       });
     }
-  } catch { /* fall through to FRED */ }
+  } catch { /* fall through */ }
 
-  // FRED backup for anything BLS didn't fill
+  // ── FRED backup (USD) ─────────────────────────────────────────────────────
   if (FRED_KEY) {
     const FRED_SERIES = [
-      { id:'CPILFESL',         key:'core_cpi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'CPIAUCSL_PC1',     key:'cpi',      lim:1,  fmt:(v)  => v.toFixed(1)+'%'                       },
-      { id:'PPIACO',           key:'ppi',      lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'PPIFIS',           key:'core_ppi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'PCEPILFE',         key:'core_pce', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'A191RL1Q225SBEA',  key:'gdp',      lim:1,  fmt:(v)  => v.toFixed(1)+'%'                       },
-      { id:'UMCSENT',          key:'umcsent',  lim:1,  fmt:(v)  => v.toFixed(1)                            },
-      { id:'ICSA',             key:'claims',   lim:1,  fmt:(v)  => Math.round(v/1000)+'K'                  },
+      { id:'CPILFESL',        key:'core_cpi', lim:2, fmt:(v,p)=> p?((v-p)/p*100).toFixed(2)+'%':'' },
+      { id:'CPIAUCSL_PC1',    key:'cpi_yoy',  lim:1, fmt:(v)  => v.toFixed(1)+'%'                   },
+      { id:'PPIACO',          key:'ppi',      lim:2, fmt:(v,p)=> p?((v-p)/p*100).toFixed(2)+'%':'' },
+      { id:'PPIFIS',          key:'core_ppi', lim:2, fmt:(v,p)=> p?((v-p)/p*100).toFixed(2)+'%':'' },
+      { id:'PCEPILFE',        key:'core_pce', lim:2, fmt:(v,p)=> p?((v-p)/p*100).toFixed(2)+'%':'' },
+      { id:'A191RL1Q225SBEA', key:'gdp',      lim:1, fmt:(v)  => v.toFixed(1)+'%'                   },
+      { id:'UMCSENT',         key:'umcsent',  lim:1, fmt:(v)  => v.toFixed(1)                        },
+      { id:'ICSA',            key:'claims',   lim:1, fmt:(v)  => Math.round(v/1000)+'K'              },
+      { id:'PERMIT',          key:'permits',  lim:1, fmt:(v)  => (v/1000).toFixed(2)+'M'             },
+      { id:'EXHOSLUSM495S',   key:'exist_homes',lim:1,fmt:(v) => (v/1000).toFixed(2)+'M'             },
+      { id:'ISRATIO',         key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        },
+      { id:'TOTALSA',         key:'construction',lim:2,fmt:(v,p)=>p?((v-p)/p*100).toFixed(2)+'%':'' },
     ];
-
     await Promise.allSettled(FRED_SERIES.map(async ({ id, key, lim, fmt }) => {
-      if (A[key]) return; // already filled by BLS
+      if (A[key]) return;
       try {
-        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${lim}&file_type=json`;
-        const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${lim}&file_type=json`, { signal: AbortSignal.timeout(5000) });
         const j = await r.json();
-        const obs = (j.observations||[]).filter(o => o.value !== '.' && o.value !== '' && !isNaN(parseFloat(o.value)));
+        const obs = (j.observations||[]).filter(o => o.value!='.'&&o.value!=''&&!isNaN(parseFloat(o.value)));
         if (!obs.length) return;
         const ageDays = (now - new Date(obs[0].date)) / 86400000;
-        const maxAge  = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 60;
+        const maxAge  = id==='ICSA'?10:id.includes('RL1Q')?100:60;
         if (ageDays > maxAge) return;
-        const cur  = parseFloat(obs[0].value);
-        const prev = obs.length > 1 ? parseFloat(obs[1].value) : null;
-        const display = fmt(cur, prev, obs);
+        const v = parseFloat(obs[0].value);
+        const p = obs.length>1?parseFloat(obs[1].value):null;
+        const display = fmt(v, p, obs);
         if (display) A[key] = display;
       } catch {}
     }));
   }
 
-  // Only show actual if event is in the past AND past 10am ET (enough time for release)
+  // ── Statistics Canada (CAD actuals) ──────────────────────────────────────
+  // StatsCan Web Data Service — vector IDs for key series
+  try {
+    const scSeries = [
+      { id:'v41690973',  key:'cad_cpi',      fmt:'mom' },  // CPI All-items
+      { id:'v41692043',  key:'cad_core_cpi', fmt:'mom' },  // CPI ex food & energy
+      { id:'v62305752',  key:'cad_gdp',      fmt:'mom' },  // Real GDP monthly
+      { id:'v52367074',  key:'cad_retail',   fmt:'mom' },  // Retail trade
+      { id:'v2062815',   key:'cad_employ',   fmt:'chg' },  // Employment ('000s)
+    ];
+    await Promise.allSettled(scSeries.map(async ({ id, key, fmt }) => {
+      try {
+        const r = await fetch(
+          `https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods/${id};10`,
+          { headers:{ 'Accept':'application/json' }, signal: AbortSignal.timeout(6000) }
+        );
+        if (!r.ok) return;
+        const j = await r.json();
+        const pts = j?.object?.vectorDataPoint || [];
+        if (pts.length < 2) return;
+        const cur  = parseFloat(pts[pts.length-1]?.value);
+        const prev = parseFloat(pts[pts.length-2]?.value);
+        if (isNaN(cur)||isNaN(prev)||prev===0) return;
+        const ageDays = (now - new Date(pts[pts.length-1]?.refPer || '2000-01')) / 86400000;
+        if (ageDays > 60) return;
+        if (fmt === 'mom') A[key] = ((cur-prev)/prev*100).toFixed(2)+'%';
+        if (fmt === 'chg') A[key] = ((cur-prev)/1000).toFixed(1)+'K'; // employment in thousands
+      } catch {}
+    }));
+  } catch { /* optional */ }
+
+  // ── Only show actual for past events (≥10am ET for today) ────────────────
   function act(key, dateStr) {
-    if (dateStr > todayStr) return '';                          // future
-    if (dateStr === todayStr && etHour < 10) return '';         // today but too early
+    if (!key || dateStr > todayStr) return '';
+    if (dateStr === todayStr && etHour < 10) return '';
     return A[key] || '';
   }
 
   const events = [
-    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',    forecast:'49.5', previous:'50.3',  actual: act('', dayStr(0)) },
-    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Construction Spending m/m',forecast:'0.3%', previous:'0.5%',  actual: act('', dayStr(0)) },
-    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',             forecast:'0.3%', previous:'0.4%',  actual: act('core_cpi', dayStr(1)) },
-    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                  forecast:'3.1%', previous:'3.2%',  actual: act('cpi',      dayStr(1)) },
-    { date:dayStr(1), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'CPI m/m',                  forecast:'0.6%', previous:'0.1%',  actual: '' },
-    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                  forecast:'0.3%', previous:'0.4%',  actual: act('ppi',      dayStr(2)) },
-    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',             forecast:'0.2%', previous:'0.3%',  actual: act('core_ppi', dayStr(2)) },
-    { date:dayStr(2), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'Core CPI m/m',             forecast:'0.4%', previous:'0.4%',  actual: '' },
+    // Monday
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'ISM Manufacturing PMI',    forecast:'49.5', previous:'50.3',  actual: act('ism_mfg',     dayStr(0)) },
+    { date:dayStr(0), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Construction Spending m/m',forecast:'0.3%', previous:'0.5%',  actual: act('construction', dayStr(0)) },
+    // Tuesday
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core CPI m/m',             forecast:'0.3%', previous:'0.4%',  actual: act('core_cpi',    dayStr(1)) },
+    { date:dayStr(1), time:'8:30am ET',  currency:'USD', impact:'High',   title:'CPI y/y',                  forecast:'3.1%', previous:'3.2%',  actual: act('cpi_yoy',     dayStr(1)) },
+    { date:dayStr(1), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'CPI m/m',                  forecast:'0.6%', previous:'0.1%',  actual: act('cad_cpi',     dayStr(1)) },
+    // Wednesday
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'High',   title:'PPI m/m',                  forecast:'0.3%', previous:'0.4%',  actual: act('ppi',         dayStr(2)) },
+    { date:dayStr(2), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Core PPI m/m',             forecast:'0.2%', previous:'0.3%',  actual: act('core_ppi',    dayStr(2)) },
+    { date:dayStr(2), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'Core CPI m/m',             forecast:'0.4%', previous:'0.4%',  actual: act('cad_core_cpi',dayStr(2)) },
     { date:dayStr(2), time:'2:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Meeting Minutes',     forecast:'',     previous:'',      actual: '' },
-    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',      forecast:'220K', previous:'218K',  actual: act('claims',   dayStr(3)) },
-    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',         forecast:'1.45M',previous:'1.47M', actual: '' },
-    { date:dayStr(3), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Existing Home Sales',      forecast:'3.9M', previous:'4.0M',  actual: '' },
-    { date:dayStr(3), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Retail Sales m/m',         forecast:'0.4%', previous:'2.5%',  actual: '' },
+    // Thursday
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Unemployment Claims',      forecast:'220K', previous:'218K',  actual: act('claims',      dayStr(3)) },
+    { date:dayStr(3), time:'8:30am ET',  currency:'USD', impact:'Medium', title:'Building Permits',         forecast:'1.45M',previous:'1.47M', actual: act('permits',     dayStr(3)) },
+    { date:dayStr(3), time:'10:00am ET', currency:'USD', impact:'Medium', title:'Existing Home Sales',      forecast:'3.9M', previous:'4.0M',  actual: act('exist_homes', dayStr(3)) },
+    { date:dayStr(3), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Retail Sales m/m',         forecast:'0.4%', previous:'2.5%',  actual: act('cad_retail',  dayStr(3)) },
     { date:dayStr(3), time:'1:00pm ET',  currency:'USD', impact:'High',   title:'FOMC Member Speech',       forecast:'',     previous:'',      actual: '' },
-    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m', forecast:'0.3%', previous:'0.3%',  actual: act('core_pce', dayStr(4)) },
-    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                  forecast:'2.3%', previous:'3.1%',  actual: act('gdp',      dayStr(4)) },
+    // Friday
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'Core PCE Price Index m/m', forecast:'0.3%', previous:'0.3%',  actual: act('core_pce',    dayStr(4)) },
+    { date:dayStr(4), time:'8:30am ET',  currency:'USD', impact:'High',   title:'GDP q/q',                  forecast:'2.3%', previous:'3.1%',  actual: act('gdp',         dayStr(4)) },
     { date:dayStr(4), time:'9:45am ET',  currency:'USD', impact:'Medium', title:'Flash Manufacturing PMI',  forecast:'52.0', previous:'52.7',  actual: '' },
-    { date:dayStr(4), time:'10:00am ET', currency:'USD', impact:'Medium', title:'UoM Consumer Sentiment',   forecast:'63.0', previous:'64.7',  actual: act('umcsent',  dayStr(4)) },
-    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'GDP m/m',                  forecast:'0.2%', previous:'0.2%',  actual: '' },
-    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Employment Change',        forecast:'15.0K',previous:'76.0K', actual: '' },
+    { date:dayStr(4), time:'10:00am ET', currency:'USD', impact:'Medium', title:'UoM Consumer Sentiment',   forecast:'63.0', previous:'64.7',  actual: act('umcsent',     dayStr(4)) },
+    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'High',   title:'GDP m/m',                  forecast:'0.2%', previous:'0.2%',  actual: act('cad_gdp',     dayStr(4)) },
+    { date:dayStr(4), time:'9:30am ET',  currency:'CAD', impact:'Medium', title:'Employment Change',        forecast:'15.0K',previous:'76.0K', actual: act('cad_employ',  dayStr(4)) },
   ].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
   return res.status(200).json({ events, count: events.length, source: 'estimated' });
