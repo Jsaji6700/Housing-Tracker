@@ -84,45 +84,83 @@ export default async function handler(req, res) {
     return d.toISOString().split('T')[0];
   }
 
-  // ── FRED actuals ──────────────────────────────────────────────────────────
+  // ── Actuals: BLS (same-day) + FRED (backup) ─────────────────────────────
   const FRED_KEY = process.env.FRED_API_KEY || '';
-  const A = {}; // actuals map
+  const A = {};
 
+  // BLS public API — updates same day as release, no key needed for basic access
+  // Series: CUSR0000SA0=CPI, CUSR0000SA0L1E=Core CPI, WPUFD4=PPI, PCU=Core PPI
+  try {
+    const blsBody = JSON.stringify({
+      seriesid: ['CUSR0000SA0', 'CUSR0000SA0L1E', 'WPUFD49104', 'WPUFD4'],
+      startyear: (now.getFullYear() - 2).toString(),
+      endyear:   now.getFullYear().toString(),
+    });
+    const blsR = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: blsBody,
+      signal: AbortSignal.timeout(8000),
+    });
+    if (blsR.ok) {
+      const blsJ = await blsR.json();
+      const series = blsJ?.Results?.series || [];
+
+      series.forEach(s => {
+        const data = (s.data || []).filter(d => d.value !== '-');
+        if (data.length < 2) return;
+        const latest = parseFloat(data[0].value);
+        const prev   = parseFloat(data[1].value);
+        const ageDays = (now - new Date(`${data[0].year}-${data[0].period.replace('M','')}-01`)) / 86400000;
+        if (ageDays > 60) return;
+
+        if (s.seriesID === 'CUSR0000SA0') {
+          // CPI y/y: compare to same month last year
+          const yrAgo = data.find(d => parseInt(d.year) === now.getFullYear() - 1 && d.period === data[0].period);
+          if (yrAgo) A['cpi'] = ((latest - parseFloat(yrAgo.value)) / parseFloat(yrAgo.value) * 100).toFixed(1) + '%';
+          // CPI m/m
+          A['cpi_mom'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
+        }
+        if (s.seriesID === 'CUSR0000SA0L1E') {
+          // Core CPI m/m
+          A['core_cpi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
+        }
+        if (s.seriesID === 'WPUFD49104') {
+          // Core PPI m/m
+          A['core_ppi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
+        }
+        if (s.seriesID === 'WPUFD4') {
+          // PPI m/m
+          A['ppi'] = ((latest - prev) / prev * 100).toFixed(2) + '%';
+        }
+      });
+    }
+  } catch { /* fall through to FRED */ }
+
+  // FRED backup for anything BLS didn't fill
   if (FRED_KEY) {
-    // Fetch each series — use correct limit for calculation type
-    const SERIES = [
-      // Series that FRED returns as already-computed rates (no math needed)
-      { id:'A191RL1Q225SBEA', key:'gdp',      lim:1,  fmt: v => v.toFixed(1)+'%'  }, // Real GDP QoQ %
-      { id:'UNRATE',          key:'unrate',   lim:1,  fmt: v => v.toFixed(1)+'%'  }, // Unemployment rate %
-      { id:'UMCSENT',         key:'umcsent',  lim:1,  fmt: v => v.toFixed(1)       }, // UoM sentiment index
-      // Weekly — show raw level formatted
-      { id:'ICSA',            key:'claims',   lim:1,  fmt: v => Math.round(v/1000)+'K' }, // Initial claims
-      // Monthly index series — calculate m/m % change (need 2 obs)
-      { id:'CPILFESL',        key:'core_cpi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      // CPIAUCSL_PC1 = CPI y/y % change series (pre-calculated by FRED, no math needed)
-      { id:'CPIAUCSL_PC1',     key:'cpi',      lim:1,  fmt:(v)=> v.toFixed(1)+'%' },
-      { id:'PPIACO',          key:'ppi',      lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'PPIFIS',          key:'core_ppi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
-      { id:'PCEPILFE',        key:'core_pce', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+    const FRED_SERIES = [
+      { id:'CPILFESL',         key:'core_cpi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'CPIAUCSL_PC1',     key:'cpi',      lim:1,  fmt:(v)  => v.toFixed(1)+'%'                       },
+      { id:'PPIACO',           key:'ppi',      lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'PPIFIS',           key:'core_ppi', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'PCEPILFE',         key:'core_pce', lim:2,  fmt:(v,p)=> p ? ((v-p)/p*100).toFixed(2)+'%' : '' },
+      { id:'A191RL1Q225SBEA',  key:'gdp',      lim:1,  fmt:(v)  => v.toFixed(1)+'%'                       },
+      { id:'UMCSENT',          key:'umcsent',  lim:1,  fmt:(v)  => v.toFixed(1)                            },
+      { id:'ICSA',             key:'claims',   lim:1,  fmt:(v)  => Math.round(v/1000)+'K'                  },
     ];
 
-    await Promise.allSettled(SERIES.map(async ({ id, key, lim, fmt }) => {
+    await Promise.allSettled(FRED_SERIES.map(async ({ id, key, lim, fmt }) => {
+      if (A[key]) return; // already filled by BLS
       try {
         const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${lim}&file_type=json`;
         const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
         const j = await r.json();
         const obs = (j.observations||[]).filter(o => o.value !== '.' && o.value !== '' && !isNaN(parseFloat(o.value)));
         if (!obs.length) return;
-
-        const latestDate = obs[0].date;
-        const ageDays = (now - new Date(latestDate)) / 86400000;
-
-        // Weekly series (claims): must be within 10 days
-        // Monthly series: within 50 days (monthly data releases ~3-4 weeks after period)
-        // Quarterly (GDP): within 100 days
-        const maxAge = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 60;
+        const ageDays = (now - new Date(obs[0].date)) / 86400000;
+        const maxAge  = id === 'ICSA' ? 10 : id.includes('RL1Q') ? 100 : 60;
         if (ageDays > maxAge) return;
-
         const cur  = parseFloat(obs[0].value);
         const prev = obs.length > 1 ? parseFloat(obs[1].value) : null;
         const display = fmt(cur, prev, obs);
