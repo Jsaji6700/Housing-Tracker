@@ -109,7 +109,7 @@ export default async function handler(req, res) {
       { id:'ICSA',            key:'claims',   lim:1, fmt:(v)  => Math.round(v/1000)+'K'              },
       { id:'PERMIT',          key:'permits',  lim:1, fmt:(v)  => (v/1000).toFixed(2)+'M'             },
       { id:'EXHOSLUSM495S',   key:'exist_homes',lim:1,fmt:(v) => (v/1000).toFixed(2)+'M'             },
-      { id:'ISRATIO',         key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        },
+      { id:'NAPM',            key:'ism_mfg',  lim:1, fmt:(v)  => v.toFixed(1)                        }, // ISM Mfg PMI
       { id:'TOTALSA',         key:'construction',lim:2,fmt:(v,p)=>p?((v-p)/p*100).toFixed(2)+'%':'' },
     ];
     await Promise.allSettled(FRED_SERIES.map(async ({ id, key, lim, fmt }) => {
@@ -144,19 +144,27 @@ export default async function handler(req, res) {
       try {
         const r = await fetch(
           `https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods/${id};10`,
-          { headers:{ 'Accept':'application/json' }, signal: AbortSignal.timeout(6000) }
+          { headers:{ 'Accept':'application/json', 'User-Agent':'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) }
         );
+        if (!r.ok) throw new Error(`StatsCan ${r.status}`);
         if (!r.ok) return;
         const j = await r.json();
-        const pts = j?.object?.vectorDataPoint || [];
+        // StatsCan returns array of objects or nested structure
+        const obj = Array.isArray(j) ? j[0] : j?.object || j;
+        const pts = obj?.vectorDataPoint || obj?.data || [];
         if (pts.length < 2) return;
-        const cur  = parseFloat(pts[pts.length-1]?.value);
-        const prev = parseFloat(pts[pts.length-2]?.value);
+        // Sort by refPer to get latest
+        const sorted = [...pts].sort((a,b) => (a.refPer||a.period||'').localeCompare(b.refPer||b.period||''));
+        const latest = sorted[sorted.length-1];
+        const second = sorted[sorted.length-2];
+        const cur  = parseFloat(latest?.value);
+        const prev = parseFloat(second?.value);
         if (isNaN(cur)||isNaN(prev)||prev===0) return;
-        const ageDays = (now - new Date(pts[pts.length-1]?.refPer || '2000-01')) / 86400000;
+        const refDate = latest?.refPer || latest?.period || '';
+        const ageDays = refDate ? (now - new Date(refDate.length===7 ? refDate+'-01' : refDate)) / 86400000 : 999;
         if (ageDays > 60) return;
         if (fmt === 'mom') A[key] = ((cur-prev)/prev*100).toFixed(2)+'%';
-        if (fmt === 'chg') A[key] = ((cur-prev)/1000).toFixed(1)+'K'; // employment in thousands
+        if (fmt === 'chg') A[key] = (cur-prev > 0 ? '+' : '') + Math.round((cur-prev)*1000)+'K';
       } catch {}
     }));
   } catch { /* optional */ }
