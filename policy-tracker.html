@@ -198,8 +198,8 @@ body::before {
 .region-row .rv { font-family: var(--mono); font-weight: 600; }
 
 /* ── INVESTMENT TABLE ── */
-.inv-change-up   { color: var(--red);   font-family: var(--mono); font-size: 11px; }
-.inv-change-dn   { color: var(--green); font-family: var(--mono); font-size: 11px; }
+.inv-change-up   { color: var(--green); font-family: var(--mono); font-size: 11px; }
+.inv-change-dn   { color: var(--red);   font-family: var(--mono); font-size: 11px; }
 .inv-change-flat { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .asset-icon { font-size: 14px; margin-right: 4px; }
 
@@ -1402,7 +1402,10 @@ function renderCalendar(events) {
         const foreNum = parseFloat((e.forecast||'').replace('%','').replace('K','').replace('M',''));
         let actColor = 'var(--text)';
         if (!isNaN(actNum) && !isNaN(foreNum) && foreNum !== 0) {
-          actColor = actNum >= foreNum ? '#4ade80' : '#f87171';
+          // Lower is better for inflation/CPI/PPI/claims, higher is better for GDP/PMI/sentiment
+          const lowerIsBetter = ['cpi','ppi','inflation','claims','unemployment'].some(k => e.title.toLowerCase().includes(k));
+          const beats = lowerIsBetter ? actNum < foreNum : actNum > foreNum;
+          actColor = beats ? '#4ade80' : '#f87171';
         }
         actualHtml = `<span class="cal-num" style="color:${actColor};font-weight:600">${e.actual}</span>`;
       }
