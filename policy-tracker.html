@@ -1157,18 +1157,25 @@ async function fetchMetals() {
       const j = await r.json();
       if (j?.gold?.price && j.gold.price > 500) {
         setPrice('gold-p', j.gold.price, '$', 0);
-        if (j.gold.open && j.gold.open > 0) {
+        if (j.gold.open && j.gold.open > 0)
           setChange('gold-d', ((j.gold.price - j.gold.open) / j.gold.open * 100).toFixed(2));
-        }
       }
       if (j?.silver?.price && j.silver.price > 5) {
         setPrice('silv-p', j.silver.price, '$', 2);
-        if (j.silver.open && j.silver.open > 0) {
+        if (j.silver.open && j.silver.open > 0)
           setChange('silv-d', ((j.silver.price - j.silver.open) / j.silver.open * 100).toFixed(2));
-        }
       }
       if (j?.platinum?.price && j.platinum.price > 100) {
         setPrice('plat-p', j.platinum.price, '$', 0);
+      }
+      // S&P 500 and Dow Jones — server-side fetch avoids CORS
+      if (j?.sp500?.price && j.sp500.price > 100) {
+        document.getElementById('sp-p').textContent = Math.round(j.sp500.price).toLocaleString();
+        if (j.sp500.open) setChange('sp-d', ((j.sp500.price - j.sp500.open) / j.sp500.open * 100).toFixed(2));
+      }
+      if (j?.dji?.price && j.dji.price > 100) {
+        document.getElementById('dj-p').textContent = Math.round(j.dji.price).toLocaleString();
+        if (j.dji.open) setChange('dj-d', ((j.dji.price - j.dji.open) / j.dji.open * 100).toFixed(2));
       }
       return true;
     }
@@ -1212,7 +1219,6 @@ async function fetchCrypto() {
   await Promise.allSettled([
     fetchMetals(),
     fetchCryptoCoins(),
-    fetchEquities(),
   ]);
 }
 
@@ -1228,28 +1234,50 @@ async function fetchCryptoCoins() {
 }
 
 async function fetchEquities() {
-  // S&P 500 and Dow Jones via Yahoo Finance query (no API key needed)
+  // S&P 500 and Dow Jones — use Yahoo Finance v7 quote (more reliable than v8 chart)
   const symbols = [
-    { sym: '%5EGSPC', priceId: 'sp-p',  chgId: 'sp-d',  fmt: v => Math.round(v).toLocaleString() },
-    { sym: '%5EDJI',  priceId: 'dj-p',  chgId: 'dj-d',  fmt: v => Math.round(v).toLocaleString() },
+    { sym: '%5EGSPC', priceId: 'sp-p', chgId: 'sp-d', fmt: v => Math.round(v).toLocaleString() },
+    { sym: '%5EDJI',  priceId: 'dj-p', chgId: 'dj-d', fmt: v => Math.round(v).toLocaleString() },
   ];
 
   await Promise.allSettled(symbols.map(async ({ sym, priceId, chgId, fmt }) => {
-    try {
-      // Use Yahoo Finance v8 quote endpoint
-      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`, {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!r.ok) throw new Error('Yahoo failed');
-      const j = await r.json();
-      const meta = j?.chart?.result?.[0]?.meta;
-      if (!meta?.regularMarketPrice) throw new Error('No price');
-      const price  = meta.regularMarketPrice;
-      const prev   = meta.chartPreviousClose || meta.previousClose;
-      const el = document.getElementById(priceId);
-      if (el) el.textContent = fmt(price);
-      if (prev) setChange(chgId, ((price - prev) / prev * 100).toFixed(2));
-    } catch { /* keep — */ }
+    // Try v7 quote endpoint first
+    const urls = [
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${sym}`,
+      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${sym}`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`,
+    ];
+    for (const url of urls) {
+      try {
+        const r = await fetch(url, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!r.ok) continue;
+        const j = await r.json();
+
+        // v7 quote response
+        const quote = j?.quoteResponse?.result?.[0];
+        if (quote?.regularMarketPrice) {
+          const price = quote.regularMarketPrice;
+          const prev  = quote.regularMarketPreviousClose || quote.chartPreviousClose;
+          const el = document.getElementById(priceId);
+          if (el) el.textContent = fmt(price);
+          if (prev) setChange(chgId, ((price - prev) / prev * 100).toFixed(2));
+          break;
+        }
+
+        // v8 chart response fallback
+        const meta = j?.chart?.result?.[0]?.meta;
+        if (meta?.regularMarketPrice) {
+          const price = meta.regularMarketPrice;
+          const prev  = meta.chartPreviousClose || meta.previousClose;
+          const el = document.getElementById(priceId);
+          if (el) el.textContent = fmt(price);
+          if (prev) setChange(chgId, ((price - prev) / prev * 100).toFixed(2));
+          break;
+        }
+      } catch { continue; }
+    }
   }));
 }
 
