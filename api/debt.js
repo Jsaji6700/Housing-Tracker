@@ -1,5 +1,5 @@
 // api/debt.js — National Debt Clock data
-// Always returns data: FRED when available, hardcoded current values as fallback
+// Priority: 1) Treasury FiscalData API (live, no key) → 2) FRED → 3) StatsCan → 4) fallback
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   const FRED_KEY = process.env.FRED_API_KEY || '';
 
   // ── Hardcoded fallback values (updated March 2026) ───────────────────────
-  // These are used when FRED API is unavailable
   const FALLBACK = {
     us: {
       debt_total:      36_500_000_000_000,  // $36.5T (Mar 2026)
@@ -44,7 +43,51 @@ export default async function handler(req, res) {
 
   const out = { us: { ...FALLBACK.us }, ca: { ...FALLBACK.ca }, ts: Date.now() };
 
-  // ── Try FRED for live US data ─────────────────────────────────────────────
+  // ── PRIORITY 1: US Treasury FiscalData API (live, no API key needed) ─────
+  // Returns daily debt-to-the-penny — most accurate and real-time source
+  try {
+    const treasuryUrl = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt&sort=-record_date&limit=2';
+    const treasuryR = await fetch(treasuryUrl, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (treasuryR.ok) {
+      const treasuryJ = await treasuryR.json();
+      const data = treasuryJ?.data;
+      if (data && data.length > 0) {
+        const latest = data[0];
+        const debt = parseFloat(latest.tot_pub_debt_out_amt);
+        if (debt > 1e13 && debt < 1e15) { // sanity: between $10T and $1Q
+          out.us.debt_total = debt;
+          out.us.debt_date  = latest.record_date;
+          out.us.source     = 'treasury_fiscal_data';
+          if (latest.debt_held_public_amt) {
+            out.us.debt_held_public = parseFloat(latest.debt_held_public_amt);
+          }
+          if (latest.intragov_hold_amt) {
+            out.us.intragov_holdings = parseFloat(latest.intragov_hold_amt);
+          }
+          // Calculate daily change for per-second rate
+          if (data.length > 1) {
+            const prev = parseFloat(data[1].tot_pub_debt_out_amt);
+            if (!isNaN(prev) && prev > 0) {
+              const dailyChange = debt - prev;
+              if (dailyChange > 0 && dailyChange < 5e10) { // sanity: < $50B/day
+                out.us.deficit_per_sec = dailyChange / 86400;
+                out.us.prev_debt = prev;
+                out.us.prev_debt_date = data[1].record_date;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch(e) {
+    // Fall through to FRED
+    console.error('Treasury API failed:', e.message);
+  }
+
+  // ── PRIORITY 2: FRED (US enriched data) ──────────────────────────────────
   if (FRED_KEY) {
     try {
       const fredFetch = async (id, lim) => {
@@ -59,7 +102,7 @@ export default async function handler(req, res) {
       };
 
       const [debt, gdp, pop, rev, spend, ss, interest] = await Promise.all([
-        fredFetch('GFDEBTN'),       // millions
+        fredFetch('GFDEBTN'),       // millions — use as fallback if Treasury failed
         fredFetch('GDP'),           // billions
         fredFetch('POP'),           // thousands
         fredFetch('FYFR'),          // millions
@@ -68,31 +111,30 @@ export default async function handler(req, res) {
         fredFetch('FYOINT'),        // millions
       ]);
 
-      if (debt?.value > 1000) {
-        out.us.debt_total      = debt.value * 1e6;
-        out.us.debt_date       = debt.date;
-        out.us.source          = 'FRED';
+      // Only overwrite debt_total with FRED if Treasury failed (Treasury is more accurate)
+      if (out.us.source !== 'treasury_fiscal_data' && debt?.value > 1000) {
+        out.us.debt_total = debt.value * 1e6;
+        out.us.debt_date  = debt.date;
+        out.us.source     = 'FRED';
+      } else if (debt?.value > 1000 && out.us.source === 'treasury_fiscal_data') {
+        // Still capture FRED for FRED source tag
+        out.us.source = 'treasury_fiscal_data+FRED';
       }
-      if (gdp?.value > 1000)    out.us.gdp             = gdp.value * 1e9;
-      if (pop?.value > 1000)    out.us.population      = pop.value * 1000;
-      if (rev?.value > 100)     out.us.revenue         = rev.value * 1e6;
-      if (spend?.value > 100)   out.us.spending        = spend.value * 1e6;
-      if (ss?.value > 1)        out.us.social_security = ss.value * 1e6;
-      if (interest?.value > 1)  out.us.interest        = interest.value * 1e6;
+
+      if (gdp?.value    > 1000)  out.us.gdp             = gdp.value * 1e9;
+      if (pop?.value    > 1000)  out.us.population      = pop.value * 1000;
+      if (rev?.value    > 100)   out.us.revenue         = rev.value * 1e6;
+      if (spend?.value  > 100)   out.us.spending        = spend.value * 1e6;
+      if (ss?.value     > 1)     out.us.social_security = ss.value * 1e6;
+      if (interest?.value > 1)   out.us.interest        = interest.value * 1e6;
 
       // Recalculate derived
       if (out.us.spending && out.us.revenue) {
-        out.us.deficit = out.us.spending - out.us.revenue;
+        out.us.deficit = Math.max(0, out.us.spending - out.us.revenue);
       }
-      if (out.us.debt_total && out.us.gdp) {
-        out.us.debt_to_gdp = (out.us.debt_total / out.us.gdp * 100).toFixed(1);
-      }
-      if (out.us.debt_total && out.us.population) {
-        out.us.debt_per_citizen = Math.round(out.us.debt_total / out.us.population);
-      }
-    } catch { /* keep fallback */ }
+    } catch { /* keep existing */ }
 
-    // ── Try StatsCan for Canada ─────────────────────────────────────────────
+    // ── StatsCan for Canada ─────────────────────────────────────────────────
     try {
       const scR = await fetch(
         'https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods',
@@ -118,23 +160,39 @@ export default async function handler(req, res) {
         if (caDebt?.value  > 1)   { out.ca.debt_total = caDebt.value  * 1e6; out.ca.debt_date = caDebt.date; out.ca.source = 'StatsCan'; }
         if (caRev?.value   > 1)     out.ca.revenue    = caRev.value   * 1e6;
         if (caSpend?.value > 1)     out.ca.spending   = caSpend.value * 1e6;
-        if (out.ca.spending && out.ca.revenue) out.ca.deficit = out.ca.spending - out.ca.revenue;
-        if (out.ca.debt_total && out.ca.gdp)   out.ca.debt_to_gdp = (out.ca.debt_total / out.ca.gdp * 100).toFixed(1);
-        if (out.ca.debt_total && out.ca.population) out.ca.debt_per_citizen = Math.round(out.ca.debt_total / out.ca.population);
+        if (out.ca.spending && out.ca.revenue) out.ca.deficit = Math.max(0, out.ca.spending - out.ca.revenue);
       }
     } catch { /* keep fallback */ }
   }
 
-  // Always set deficit per sec and debt per sec
-  out.us.debt_per_sec    = (out.us.deficit    || 1_800_000_000_000) / (365.25 * 86400);
-  out.us.deficit_per_sec = (out.us.deficit    || 1_800_000_000_000) / (365.25 * 86400);
-  out.us.interest_per_sec= (out.us.interest   || 900_000_000_000)   / (365.25 * 86400);
-  out.us.spending_per_sec= (out.us.spending   || 6_700_000_000_000) / (365.25 * 86400);
+  // ── Recalculate derived values for US ─────────────────────────────────────
+  if (out.us.debt_total && out.us.gdp) {
+    out.us.debt_to_gdp = (out.us.debt_total / out.us.gdp * 100).toFixed(1);
+  }
+  if (out.us.debt_total && out.us.population) {
+    out.us.debt_per_citizen = Math.round(out.us.debt_total / out.us.population);
+  }
 
-  out.ca.debt_per_sec    = (out.ca.deficit    || 50_000_000_000)    / (365.25 * 86400);
-  out.ca.deficit_per_sec = (out.ca.deficit    || 50_000_000_000)    / (365.25 * 86400);
-  out.ca.interest_per_sec= (out.ca.interest   || 55_000_000_000)    / (365.25 * 86400);
-  out.ca.spending_per_sec= (out.ca.spending   || 550_000_000_000)   / (365.25 * 86400);
+  // ── Recalculate derived for CA ─────────────────────────────────────────────
+  if (out.ca.debt_total && out.ca.gdp) {
+    out.ca.debt_to_gdp = (out.ca.debt_total / out.ca.gdp * 100).toFixed(1);
+  }
+  if (out.ca.debt_total && out.ca.population) {
+    out.ca.debt_per_citizen = Math.round(out.ca.debt_total / out.ca.population);
+  }
+
+  // ── Per-second rates for real-time ticking ─────────────────────────────────
+  out.us.debt_per_sec     = (out.us.deficit_per_sec  || (out.us.deficit  || 1_800_000_000_000) / (365.25 * 86400));
+  out.us.deficit_per_sec  = out.us.debt_per_sec;
+  out.us.interest_per_sec = (out.us.interest   || 900_000_000_000)   / (365.25 * 86400);
+  out.us.spending_per_sec = (out.us.spending   || 6_700_000_000_000) / (365.25 * 86400);
+  out.us.revenue_per_sec  = (out.us.revenue    || 4_900_000_000_000) / (365.25 * 86400);
+
+  out.ca.debt_per_sec     = (out.ca.deficit    || 50_000_000_000)    / (365.25 * 86400);
+  out.ca.deficit_per_sec  = out.ca.debt_per_sec;
+  out.ca.interest_per_sec = (out.ca.interest   || 55_000_000_000)    / (365.25 * 86400);
+  out.ca.spending_per_sec = (out.ca.spending   || 550_000_000_000)   / (365.25 * 86400);
+  out.ca.revenue_per_sec  = (out.ca.revenue    || 500_000_000_000)   / (365.25 * 86400);
 
   return res.status(200).json(out);
 }
