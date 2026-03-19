@@ -1,21 +1,36 @@
-// api/metals.js — gold, silver, platinum + S&P500, DJI
-// Always returns best available data, never blocks on one failure
+// api/metals.js — Gold, Silver, Platinum + S&P500, DJI
+// Always returns data: live from Yahoo Finance, fallback to hardcoded current values
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
 
-  const FRED_KEY = process.env.FRED_API_KEY || '';
-  const out = {
-    gold:     { price: 0, open: null, source: 'none' },
-    silver:   { price: 0, open: null, source: 'none' },
-    platinum: { price: 0, open: null, source: 'none' },
-    sp500:    { price: 0, open: null, source: 'none' },
-    dji:      { price: 0, open: null, source: 'none' },
+  // ── Hardcoded fallbacks (March 2026 current values) ──────────────────────
+  const FALLBACK = {
+    gold:     { price: 5020,   open: 4998,  source: 'fallback' },
+    silver:   { price: 79.50,  open: 80.10, source: 'fallback' },
+    platinum: { price: 2130,   open: 2115,  source: 'fallback' },
+    sp500:    { price: 6720,   open: 6680,  source: 'fallback' },
+    dji:      { price: 47100,  open: 46900, source: 'fallback' },
   };
 
-  // ── Fetch metals + equities all in parallel ──────────────────────────────
-  const YAHOO_SYMBOLS = {
+  const out = {
+    gold:     { ...FALLBACK.gold },
+    silver:   { ...FALLBACK.silver },
+    platinum: { ...FALLBACK.platinum },
+    sp500:    { ...FALLBACK.sp500 },
+    dji:      { ...FALLBACK.dji },
+  };
+
+  const SANITY = {
+    gold:     [3000, 8000],
+    silver:   [40,   200],
+    platinum: [500,  5000],
+    sp500:    [2000, 20000],
+    dji:      [15000, 80000],
+  };
+
+  const SYMBOLS = {
     gold:     'GC%3DF',
     silver:   'SI%3DF',
     platinum: 'PL%3DF',
@@ -23,90 +38,56 @@ export default async function handler(req, res) {
     dji:      '%5EDJI',
   };
 
-  const SANITY = {
-    gold:     [3000, 8000],
-    silver:   [40,   200],
-    platinum: [500,  4000],
-    sp500:    [1000, 20000],
-    dji:      [10000, 80000],
-  };
-
-  // Yahoo Finance — fetch all in parallel
+  // ── Try Yahoo Finance for all assets in parallel ──────────────────────────
   await Promise.allSettled(
-    Object.entries(YAHOO_SYMBOLS).map(async ([key, sym]) => {
+    Object.entries(SYMBOLS).map(async ([key, sym]) => {
       try {
         const r = await fetch(
           `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`,
-          { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(7000) }
+          {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(6000),
+          }
         );
-        if (!r.ok) throw new Error(`Yahoo ${sym}: ${r.status}`);
+        if (!r.ok) throw new Error(`${r.status}`);
         const j = await r.json();
         const meta = j?.chart?.result?.[0]?.meta;
         if (!meta?.regularMarketPrice) throw new Error('no price');
         const price = meta.regularMarketPrice;
         const open  = meta.chartPreviousClose || meta.previousClose || null;
         const [min, max] = SANITY[key];
-        if (price < min || price > max) throw new Error(`sanity fail: ${price} not in [${min},${max}]`);
+        if (price < min || price > max) throw new Error(`sanity: ${price}`);
         out[key] = { price, open, source: 'yahoo' };
-      } catch { /* keep zero, try fallback below */ }
+      } catch { /* keep fallback */ }
     })
   );
 
-  // ── Fallback for metals that Yahoo missed ────────────────────────────────
-
-  // metals.live — free, no key
-  if (!out.gold.price || !out.silver.price) {
+  // ── If gold/silver still on fallback, try metals.live ────────────────────
+  if (out.gold.source === 'fallback' || out.silver.source === 'fallback') {
     try {
       const r = await fetch('https://api.metals.live/v1/spot', { signal: AbortSignal.timeout(5000) });
       if (r.ok) {
         const j = await r.json();
-        if (!out.gold.price && j?.gold > 3000 && j.gold < 8000) {
-          out.gold = { price: Math.round(j.gold), open: null, source: 'metals.live' };
-        }
-        if (!out.silver.price && j?.silver > 40 && j.silver < 200) {
-          out.silver = { price: parseFloat(j.silver.toFixed(2)), open: null, source: 'metals.live' };
-        }
-        if (!out.platinum.price && j?.platinum > 500) {
-          out.platinum = { price: Math.round(j.platinum), open: null, source: 'metals.live' };
-        }
+        if (j?.gold   > 3000 && j.gold   < 8000)  out.gold     = { price: Math.round(j.gold),                    open: null, source: 'metals.live' };
+        if (j?.silver > 40   && j.silver < 200)   out.silver   = { price: parseFloat(j.silver.toFixed(2)),       open: null, source: 'metals.live' };
+        if (j?.platinum > 500)                     out.platinum = { price: Math.round(j.platinum),                open: null, source: 'metals.live' };
       }
-    } catch { /* skip */ }
+    } catch { /* keep fallback */ }
   }
 
-  // goldprice.org — fallback for gold/silver
-  if (!out.gold.price || !out.silver.price) {
+  // ── If gold/silver still on fallback, try goldprice.org ─────────────────
+  if (out.gold.source === 'fallback' || out.silver.source === 'fallback') {
     try {
       const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD', { signal: AbortSignal.timeout(5000) });
       if (r.ok) {
         const j = await r.json();
         const item = j?.items?.[0];
-        if (!out.gold.price && item?.xauPrice > 3000) {
-          out.gold = { price: Math.round(item.xauPrice), open: item.xauOpen || null, source: 'goldprice.org' };
-        }
-        if (!out.silver.price && item?.xagPrice > 40) {
-          out.silver = { price: parseFloat(item.xagPrice.toFixed(2)), open: item.xagOpen || null, source: 'goldprice.org' };
-        }
+        if (item?.xauPrice > 3000) out.gold   = { price: Math.round(item.xauPrice),              open: item.xauOpen || null, source: 'goldprice.org' };
+        if (item?.xagPrice > 40)   out.silver = { price: parseFloat(item.xagPrice.toFixed(2)),   open: item.xagOpen || null, source: 'goldprice.org' };
       }
-    } catch { /* skip */ }
+    } catch { /* keep fallback */ }
   }
 
-  // FRED — last resort for gold/silver (monthly, but better than nothing)
-  if (FRED_KEY && (!out.gold.price || !out.silver.price)) {
-    try {
-      const [gR, sR] = await Promise.all([
-        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=GOLDPMGBD228NLBM&api_key=${FRED_KEY}&sort_order=desc&limit=1&file_type=json`, { signal: AbortSignal.timeout(5000) }),
-        fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=SLVPRUSD&api_key=${FRED_KEY}&sort_order=desc&limit=1&file_type=json`, { signal: AbortSignal.timeout(5000) }),
-      ]);
-      const gj = await gR.json();
-      const sj = await sR.json();
-      const gp = parseFloat(gj?.observations?.[0]?.value);
-      const sp = parseFloat(sj?.observations?.[0]?.value);
-      if (!out.gold.price   && gp > 3000) out.gold   = { price: Math.round(gp), open: null, source: 'FRED' };
-      if (!out.silver.price && sp > 40)   out.silver = { price: parseFloat(sp.toFixed(2)), open: null, source: 'FRED' };
-    } catch { /* skip */ }
-  }
-
-  // Always return 200 with whatever we have
+  // Always 200 — worst case returns fallback values
   return res.status(200).json(out);
 }
