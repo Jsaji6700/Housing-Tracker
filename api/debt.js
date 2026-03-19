@@ -28,9 +28,24 @@ async function scrapeCountry(slug) {
   if (!resp.ok) throw new Error(`${slug} fetch failed: ${resp.status}`);
   const html = await resp.text();
 
+  // Pull stats from the HTML stat cards — debtclock.io uses consistent structure
+  function stat(label) {
+    // Match the label, then find the first number-like value following it
+    const re = new RegExp(
+      label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+        '[\\s\\S]{0,600}?([\\d]{1,3}(?:[,\\d]*)(?:\\.\\d+)?)',
+      'i'
+    );
+    const m = html.match(re);
+    if (!m) return null;
+    return parseFloat(m[1].replace(/,/g, ''));
+  }
+
+  // Debt as % of GDP — appears right after the big header number
   const debtGdpMatch = html.match(/Debt as % of GDP[\s\S]{0,200}?([\d.]+)%/i);
   const debtGdp = debtGdpMatch ? parseFloat(debtGdpMatch[1]) : null;
 
+  // Nominal debt — the large h1 figure
   const debtMatch = html.match(/\$([\s\d,]+)<\/h1>|<h1[^>]*>\s*([\d,]+)\s*\$/i);
   const debtRaw = debtMatch ? (debtMatch[1] || debtMatch[2]) : null;
   const debtNominal = debtRaw ? parseFloat(debtRaw.replace(/[\s,]/g, '')) : null;
@@ -66,8 +81,18 @@ async function scrapeCountry(slug) {
   const dataYear = yearMatch ? parseInt(yearMatch[1]) : 2024;
 
   return {
-    slug, dataYear, debtGdpPct: debtGdp, debtNominal, gdp, population,
-    interestPerYear, debtPerCitizen, inflation, gdpGrowth, unemployment,
-    budgetBalance, fx,
+    slug,
+    dataYear,
+    debtGdpPct: debtGdp,
+    debtNominal,
+    gdp,
+    population,
+    interestPerYear,
+    debtPerCitizen,
+    inflation,
+    gdpGrowth,
+    unemployment,
+    budgetBalance,
+    fx,
   };
 }
