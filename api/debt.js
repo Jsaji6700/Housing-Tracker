@@ -19,26 +19,20 @@ export default async function handler(req, res) {
 
   // ── US Data ───────────────────────────────────────────────────────────────
   await Promise.allSettled([
-    // National Debt (billions)
-    fredFetch('GFDEBTN').then(d => { if(d) results.us_debt_b = d; }),
-    // Federal Revenue (billions, annual)
-    fredFetch('FYFR').then(d => { if(d) results.us_revenue_b = d; }),
-    // Federal Outlays/Spending (billions, annual)
-    fredFetch('FYOFD').then(d => { if(d) results.us_spending_b = d; }),
-    // GDP nominal (billions)
+    // National Debt — GFDEBTN is in MILLIONS of dollars
+    fredFetch('GFDEBTN').then(d => { if(d) results.us_debt_m = d; }),
+    // Federal Revenue — FYFR is in MILLIONS of dollars
+    fredFetch('FYFR').then(d => { if(d) results.us_revenue_m = d; }),
+    // Federal Outlays — FYOFD is in MILLIONS of dollars
+    fredFetch('FYOFD').then(d => { if(d) results.us_spending_m = d; }),
+    // GDP nominal — GDP is in BILLIONS of dollars (quarterly annualized)
     fredFetch('GDP').then(d => { if(d) results.us_gdp_b = d; }),
-    // Population
-    fredFetch('POP').then(d => { if(d) results.us_pop_m = d; }),
-    // Medicare + Medicaid spending (billions)
-    fredFetch('MEDICAID').then(d => { if(d) results.us_medicaid_b = d; }),
-    // Social Security outlays (billions)
-    fredFetch('FYOFSSS').then(d => { if(d) results.us_ss_b = d; }),
-    // Federal debt held by public (billions)
-    fredFetch('FYGFDPUN').then(d => { if(d) results.us_debt_public_b = d; }),
-    // Interest on debt (billions)
-    fredFetch('FYOINT').then(d => { if(d) results.us_interest_b = d; }),
-    // Unemployment (millions)
-    fredFetch('UNEMPLOY').then(d => { if(d) results.us_unemployed_m = d; }),
+    // Population — POP is in THOUSANDS
+    fredFetch('POP').then(d => { if(d) results.us_pop_k = d; }),
+    // Social Security outlays — FYOFSSS in MILLIONS
+    fredFetch('FYOFSSS').then(d => { if(d) results.us_ss_m = d; }),
+    // Interest on debt — FYOINT in MILLIONS
+    fredFetch('FYOINT').then(d => { if(d) results.us_interest_m = d; }),
   ]);
 
   // ── Canada Data (StatsCan + FRED) ─────────────────────────────────────────
@@ -80,32 +74,37 @@ export default async function handler(req, res) {
   // ── Compute derived metrics ───────────────────────────────────────────────
   const out = { us: {}, ca: {}, ts: Date.now() };
 
-  // US
-  if (results.us_debt_b) {
-    const debtB = results.us_debt_b.value;
-    out.us.debt_total     = debtB * 1e9;                          // raw dollars
-    out.us.debt_date      = results.us_debt_b.date;
-    out.us.debt_per_sec   = (debtB * 1e9) / (365.25 * 24 * 3600); // $ added per second (rough)
+  // US — GFDEBTN/FYFR/FYOFD are in MILLIONS, GDP in BILLIONS, POP in THOUSANDS
+  if (results.us_debt_m) {
+    out.us.debt_total   = results.us_debt_m.value * 1e6;  // millions → dollars
+    out.us.debt_date    = results.us_debt_m.date;
+    // US adds ~$2T/year to debt = ~$63,000/sec
+    const annualDebtGrowth = results.us_spending_m && results.us_revenue_m
+      ? (results.us_spending_m.value - results.us_revenue_m.value) * 1e6
+      : 2e12;
+    out.us.debt_per_sec = annualDebtGrowth / (365.25 * 24 * 3600);
   }
   if (results.us_gdp_b) {
-    out.us.gdp            = results.us_gdp_b.value * 1e9;
-    out.us.debt_to_gdp    = results.us_debt_b ? ((results.us_debt_b.value / results.us_gdp_b.value) * 100).toFixed(1) : null;
+    out.us.gdp = results.us_gdp_b.value * 1e9;
+    out.us.debt_to_gdp = results.us_debt_m
+      ? ((results.us_debt_m.value * 1e6) / (results.us_gdp_b.value * 1e9) * 100).toFixed(1)
+      : null;
   }
-  if (results.us_pop_m) {
-    const pop = results.us_pop_m.value * 1000; // thousands → actual
-    out.us.population     = pop;
-    out.us.debt_per_citizen = results.us_debt_b ? Math.round(results.us_debt_b.value * 1e9 / pop) : null;
+  if (results.us_pop_k) {
+    const pop = results.us_pop_k.value * 1000; // thousands → actual
+    out.us.population       = pop;
+    out.us.debt_per_citizen = results.us_debt_m
+      ? Math.round(results.us_debt_m.value * 1e6 / pop)
+      : null;
   }
-  if (results.us_spending_b) out.us.spending   = results.us_spending_b.value * 1e9;
-  if (results.us_revenue_b)  out.us.revenue    = results.us_revenue_b.value  * 1e9;
-  if (results.us_spending_b && results.us_revenue_b) {
-    out.us.deficit = (results.us_spending_b.value - results.us_revenue_b.value) * 1e9;
+  if (results.us_spending_m) out.us.spending = results.us_spending_m.value * 1e6;
+  if (results.us_revenue_m)  out.us.revenue  = results.us_revenue_m.value  * 1e6;
+  if (results.us_spending_m && results.us_revenue_m) {
+    out.us.deficit = (results.us_spending_m.value - results.us_revenue_m.value) * 1e6;
     out.us.deficit_per_sec = out.us.deficit / (365.25 * 24 * 3600);
   }
-  if (results.us_ss_b)       out.us.social_security = results.us_ss_b.value * 1e9;
-  if (results.us_medicaid_b) out.us.medicaid        = results.us_medicaid_b.value * 1e9;
-  if (results.us_interest_b) out.us.interest        = results.us_interest_b.value * 1e9;
-  // Unfunded liabilities estimate (SS + Medicare future obligations — standard ~$175T estimate)
+  if (results.us_ss_m)       out.us.social_security = results.us_ss_m.value * 1e6;
+  if (results.us_interest_m) out.us.interest        = results.us_interest_m.value * 1e6;
   out.us.unfunded_est = 175e12;
 
   // Canada
