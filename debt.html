@@ -1,73 +1,353 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Debt Policy Tracker — US & Canada</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117; --card: #1a1d26; --border: #2a2d3a;
+      --text: #e2e8f0; --muted: #94a3b8;
+      --us: #60a5fa; --ca: #f472b6;
+      --green: #34d399; --red: #f87171; --yellow: #fbbf24;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .header { padding: 28px 32px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .header h1 { font-size: 1.35rem; font-weight: 700; }
+    .header p { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    .header-left { display: flex; flex-direction: column; gap: 6px; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    .back-link:hover { color: var(--text); }
+    .refresh-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+    .refresh-btn:hover { background: #232636; }
+    .updated-tag { font-size: 0.75rem; color: var(--muted); }
+    .main { padding: 24px 32px; max-width: 1300px; margin: 0 auto; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width:700px) { .hero-grid { grid-template-columns: 1fr; } }
+    .hero-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
+    .hero-card.us { border-top: 3px solid var(--us); }
+    .hero-card.ca { border-top: 3px solid var(--ca); }
+    .hero-flag { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .hero-flag .flag { font-size: 1.6rem; }
+    .hero-flag .country-name { font-size: 1rem; font-weight: 600; }
+    .year-badge { background: #2d3148; border-radius: 4px; padding: 2px 7px; font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+    .debt-headline { font-size: 2rem; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+    .debt-headline.us { color: var(--us); }
+    .debt-headline.ca { color: var(--ca); }
+    .debt-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .stat-value { font-size: 0.95rem; font-weight: 600; }
+    .stat-value.pos { color: var(--green); }
+    .stat-value.neg { color: var(--red); }
+    .stat-value.warn { color: var(--yellow); }
+    .clock-bar { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 24px; display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+    .clock-item { text-align: center; }
+    .clock-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .clock-value { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--yellow); }
+    .clock-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .chart-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .chart-header h2 { font-size: 0.95rem; font-weight: 600; }
+    .tab-group { display: flex; gap: 4px; background: #0f1117; border-radius: 8px; padding: 3px; }
+    .tab-btn { background: none; border: none; color: var(--muted); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 500; }
+    .tab-btn.active { background: var(--card); color: var(--text); }
+    .backtest-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; }
+    .backtest-section h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+    .backtest-section p { font-size: 0.8rem; color: var(--muted); margin-bottom: 16px; }
+    .backtest-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: flex-end; }
+    .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-group label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .ctrl-group select, .ctrl-group input { background: #0f1117; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; min-width: 120px; }
+    .run-btn { background: #3b4fd8; border: none; color: #fff; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+    .run-btn:hover { background: #4a5fe0; }
+    .backtest-results { display: none; }
+    .backtest-results.show { display: block; }
+    .bt-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 12px; margin-bottom: 16px; }
+    .bt-card { background: #0f1117; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .bt-card-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .bt-card-value { font-size: 1.1rem; font-weight: 700; }
+    .bt-card-value.pos { color: var(--green); }
+    .bt-card-value.neg { color: var(--red); }
+    .bt-card-value.neu { color: var(--yellow); }
+    .insight-box { background: #1a2336; border: 1px solid #2a3a56; border-radius: 8px; padding: 14px 16px; font-size: 0.82rem; line-height: 1.6; color: #b0c4de; margin-top: 14px; }
+    .insight-box strong { color: var(--text); }
+    .policy-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; }
+    .policy-section h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; }
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+    .tl-item { position: relative; margin-bottom: 18px; padding-left: 16px; }
+    .tl-item::before { content: ''; position: absolute; left: -14px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+    .tl-item.us::before { background: var(--us); }
+    .tl-item.ca::before { background: var(--ca); }
+    .tl-item.both::before { background: var(--yellow); }
+    .tl-date { font-size: 0.7rem; color: var(--muted); margin-bottom: 2px; }
+    .tl-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+    .tl-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+    .tl-tag { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600; vertical-align: middle; }
+    .tl-tag.us  { background: rgba(96,165,250,0.15); color: var(--us); }
+    .tl-tag.ca  { background: rgba(244,114,182,0.15); color: var(--ca); }
+    .tl-tag.neg { background: rgba(248,113,113,0.15); color: var(--red); }
+    .tl-tag.pos { background: rgba(52,211,153,0.15);  color: var(--green); }
+    .source-bar { font-size: 0.72rem; color: var(--muted); border-top: 1px solid var(--border); padding: 14px 32px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .source-bar a { color: var(--muted); text-decoration: underline; }
+    .loading-overlay { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--muted); font-size: 0.85rem; gap: 10px; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--us); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
 
+<div class="header">
+  <div class="header-left">
+    <a href="/" class="back-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Housing Tracker
+    </a>
+    <h1>🏛 Policy Tracker — National Debt</h1>
+    <p>Live US & Canada debt data from World Debt Clock (debtclock.io) · IMF / World Bank sources</p>
+    <div class="updated-tag" id="updatedTag">Loading…</div>
+  </div>
+  <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+</div>
+
+<div class="main" id="mainContent">
+  <div class="loading-overlay"><div class="spinner"></div> Fetching live debt data…</div>
+</div>
+
+<div class="source-bar">
+  <span>Data: <a href="https://debtclock.io" target="_blank">debtclock.io</a> (IMF WEO / World Bank WDI)</span>
+  <span>Historical: IMF World Economic Outlook (2000–2024)</span>
+  <span>Policy events: PBO, CBO, Dept. of Finance Canada, US Treasury</span>
+</div>
+
+<script>
+const HISTORICAL = {
+  years:[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],
+  us:   [54.5,56.4,58.8,61.0,62.2,62.7,63.6,64.4,76.1,88.2,95.6,99.8,103.0,105.1,105.1,105.2,106.8,105.8,106.9,108.7,133.5,130.1,121.0,123.0,133.9],
+  ca:   [82.1,84.0,76.9,72.5,71.4,70.3,67.1,66.6,71.3,79.3,81.4,81.1,85.3,85.6,85.6,91.8,91.7,89.7,89.7,87.9,118.4,113.3,107.4,103.6,95.4],
+};
+
+const POLICY_EVENTS = [
+  {year:2001,country:'us',  title:'Bush Tax Cuts (EGTRRA)',       desc:'$1.35T tax cut. Debt/GDP rises from 56% → 64% over 7 years.',                                           tags:[{l:'US',c:'us'},{l:'+Debt',c:'neg'}]},
+  {year:2008,country:'both',title:'Global Financial Crisis',       desc:'US TARP ($700B). Canada stimulus budget 2009. Debt spikes sharply in both countries.',                  tags:[{l:'US',c:'us'},{l:'CA',c:'ca'},{l:'Shock',c:'neg'}]},
+  {year:2009,country:'us',  title:'ARRA Stimulus Act',             desc:'$787B recovery act. US debt/GDP jumps from 76% to 88% in a single year.',                               tags:[{l:'US',c:'us'},{l:'+Debt',c:'neg'}]},
+  {year:2015,country:'ca',  title:'Liberal Deficit Spending Plan', desc:'Trudeau abandons balanced budget, runs intentional deficits for infrastructure.',                       tags:[{l:'CA',c:'ca'},{l:'+Debt',c:'neg'}]},
+  {year:2017,country:'us',  title:'Tax Cuts & Jobs Act',           desc:'Corporate tax 35% → 21%. CBO projects $1.5T added to deficit over 10 years.',                          tags:[{l:'US',c:'us'},{l:'+Debt',c:'neg'}]},
+  {year:2020,country:'both',title:'COVID-19 Pandemic Response',    desc:'US CARES Act ($2.2T). Canada CERB/CEWS ($200B+). Largest peacetime debt spikes.',                       tags:[{l:'US',c:'us'},{l:'CA',c:'ca'},{l:'Shock',c:'neg'}]},
+  {year:2021,country:'us',  title:'American Rescue Plan',          desc:'$1.9T COVID relief. US debt/GDP peaks at 133.5%. Canada peaks at 118.4%.',                             tags:[{l:'US',c:'us'},{l:'+Debt',c:'neg'}]},
+  {year:2022,country:'both',title:'Rate Hike Cycle Begins',        desc:'Fed and BoC raise rates from ~0% to 5%+. Interest costs surge as debt rolls over.',                    tags:[{l:'US',c:'us'},{l:'CA',c:'ca'},{l:'Rates↑',c:'neg'}]},
+  {year:2023,country:'ca',  title:'Canada Budget 2023',            desc:'Deficit $40B. PBO warns debt trajectory unsustainable. Interest charges hit $43B.',                    tags:[{l:'CA',c:'ca'},{l:'+Debt',c:'neg'}]},
+  {year:2024,country:'us',  title:'US Debt Hits $35 Trillion',     desc:'Interest payments top $1T/yr for first time — surpassing defense spending.',                          tags:[{l:'US',c:'us'},{l:'Record',c:'neg'}]},
+  {year:2025,country:'ca',  title:'Canada Budget 2025',            desc:'Projected deficit $78.3B. Net debt growing ~$214M/day. AAA credit rating held.',                       tags:[{l:'CA',c:'ca'},{l:'+Debt',c:'neg'}]},
+];
+
+let clockInterval = null;
+
+function startClocks(usPs, caPs) {
+  let cu = 0, cc = 0;
+  if (clockInterval) clearInterval(clockInterval);
+  clockInterval = setInterval(() => {
+    cu += usPs; cc += caPs;
+    const ue = document.getElementById('clockUS'), ce = document.getElementById('clockCA');
+    if (ue) ue.textContent = '$' + Math.round(cu).toLocaleString();
+    if (ce) ce.textContent = 'C$' + Math.round(cc).toLocaleString();
+  }, 1000);
+}
+
+function fmtT(n, pre='$') {
+  if (!n) return '—';
+  if (n >= 1e12) return pre + (n/1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return pre + (n/1e9).toFixed(1) + 'B';
+  return pre + n.toLocaleString();
+}
+function fmtPct(n) { return n==null ? '—' : (n>=0?'+':'')+n.toFixed(2)+'%'; }
+
+function renderAll(us, ca) {
+  const uiPs = us.interestPerYear ? us.interestPerYear/31557600 : 37143;
+  const ciPs = ca.interestPerYear ? ca.interestPerYear/31557600 : 2782;
+  startClocks(uiPs, ciPs);
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="hero-grid">
+      ${hero('us','🇺🇸','United States',us,'$')}
+      ${hero('ca','🇨🇦','Canada',ca,'C$')}
+    </div>
+    <div class="clock-bar">
+      <div class="clock-item">
+        <div class="clock-label">🇺🇸 US Interest Accruing This Session</div>
+        <div class="clock-value" id="clockUS">$0</div>
+        <div class="clock-sub">${fmtT(us.interestPerYear)} / year &nbsp;·&nbsp; $${Math.round(uiPs).toLocaleString()}/sec</div>
+      </div>
+      <div class="clock-item">
+        <div class="clock-label">🇨🇦 Canada Interest Accruing This Session</div>
+        <div class="clock-value" id="clockCA">C$0</div>
+        <div class="clock-sub">${fmtT(ca.interestPerYear,'C$')} / year &nbsp;·&nbsp; C$${Math.round(ciPs).toLocaleString()}/sec</div>
+      </div>
+    </div>
+    <div class="chart-section">
+      <div class="chart-header">
+        <h2>Debt-to-GDP (%) — Historical Trend 2000–2024</h2>
+        <div class="tab-group">
+          <button class="tab-btn active" onclick="switchM('debtgdp',this)">Debt/GDP</button>
+          <button class="tab-btn" onclick="switchM('inflation',this)">Inflation</button>
+          <button class="tab-btn" onclick="switchM('growth',this)">GDP Growth</button>
+          <button class="tab-btn" onclick="switchM('unemployment',this)">Unemployment</button>
+        </div>
+      </div>
+      <canvas id="histChart" height="90"></canvas>
+    </div>
+    <div class="backtest-section">
+      <h2>📊 Policy Backtest Simulator</h2>
+      <p>Model the debt trajectory if a fiscal policy had been enacted earlier. Compares actual vs simulated Debt/GDP.</p>
+      <div class="backtest-controls">
+        <div class="ctrl-group"><label>Country</label>
+          <select id="btC"><option value="us">🇺🇸 United States</option><option value="ca">🇨🇦 Canada</option></select>
+        </div>
+        <div class="ctrl-group"><label>Policy Start Year</label>
+          <select id="btY">${[2010,2012,2015,2017,2019,2020,2022].map(y=>`<option value="${y}">${y}</option>`).join('')}</select>
+        </div>
+        <div class="ctrl-group"><label>Annual Deficit Reduction (% GDP)</label>
+          <input type="number" id="btR" value="1.5" step="0.5" min="0.1" max="10" style="width:90px"/>
+        </div>
+        <div class="ctrl-group"><label>Growth Boost (%/yr)</label>
+          <input type="number" id="btG" value="0.2" step="0.1" min="-2" max="3" style="width:90px"/>
+        </div>
+        <button class="run-btn" onclick="runBT()">▶ Run Backtest</button>
+      </div>
+      <div class="backtest-results" id="btRes">
+        <div class="bt-summary" id="btSum"></div>
+        <canvas id="btChart" height="90"></canvas>
+        <div class="insight-box" id="btIns"></div>
+      </div>
+    </div>
+    <div class="policy-section">
+      <h2>📅 Key Policy Events & Debt Impact</h2>
+      <div class="timeline">
+        ${POLICY_EVENTS.map(e=>`
+          <div class="tl-item ${e.country}">
+            <div class="tl-date">${e.year} ${e.tags.map(t=>`<span class="tl-tag ${t.c}">${t.l}</span>`).join('')}</div>
+            <div class="tl-title">${e.title}</div>
+            <div class="tl-desc">${e.desc}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  renderHist('debtgdp');
+}
+
+function hero(cls, flag, name, d, pre) {
+  const bCls = d.budgetBalance >= 0 ? 'pos' : 'neg';
+  const gCls = d.gdpGrowth > 1 ? 'pos' : d.gdpGrowth < 0 ? 'neg' : 'warn';
+  const uCls = d.unemployment < 5 ? 'pos' : d.unemployment > 8 ? 'neg' : 'warn';
+  return `
+    <div class="hero-card ${cls}">
+      <div class="hero-flag">
+        <span class="flag">${flag}</span>
+        <span class="country-name">${name}</span>
+        <span class="year-badge">Data: ${d.dataYear}</span>
+      </div>
+      <div class="debt-headline ${cls}">${d.debtGdpPct ? d.debtGdpPct.toFixed(1)+'%' : '—'}</div>
+      <div class="debt-sub">Debt / GDP &nbsp;·&nbsp; Nominal: ${fmtT(d.debtNominal, pre)}</div>
+      <div class="stat-grid">
+        <div><div class="stat-label">GDP</div><div class="stat-value">${fmtT(d.gdp, pre)}</div></div>
+        <div><div class="stat-label">Debt per Citizen</div><div class="stat-value neg">${d.debtPerCitizen ? pre+(d.debtPerCitizen/1000).toFixed(0)+'K' : '—'}</div></div>
+        <div><div class="stat-label">Inflation (CPI)</div><div class="stat-value ${d.inflation<3?'pos':'warn'}">${d.inflation!=null?d.inflation.toFixed(2)+'%':'—'}</div></div>
+        <div><div class="stat-label">GDP Growth</div><div class="stat-value ${gCls}">${d.gdpGrowth!=null?'+'+d.gdpGrowth.toFixed(2)+'%':'—'}</div></div>
+        <div><div class="stat-label">Unemployment</div><div class="stat-value ${uCls}">${d.unemployment!=null?d.unemployment.toFixed(2)+'%':'—'}</div></div>
+        <div><div class="stat-label">Budget Balance</div><div class="stat-value ${bCls}">${fmtPct(d.budgetBalance)} GDP</div></div>
+      </div>
+    </div>`;
+}
+
+let hci = null;
+const MC = {
+  debtgdp:     {label:'Debt/GDP (%)',       us:HISTORICAL.us, ca:HISTORICAL.ca},
+  inflation:   {label:'Inflation CPI (%)',  us:[3.4,2.8,1.6,2.3,2.7,3.4,3.2,2.9,3.8,-.4,1.6,3.2,2.1,1.5,1.6,0.1,1.3,2.1,2.4,1.8,1.2,4.7,8.0,4.1,2.95], ca:[2.7,2.5,2.3,2.7,1.8,2.2,2.0,2.1,2.4,0.3,1.8,2.9,1.5,0.9,1.9,1.1,1.4,1.6,2.3,1.9,0.7,3.4,6.8,3.9,2.38]},
+  growth:      {label:'Real GDP Growth (%)',us:[4.1,.9,1.8,2.8,3.9,3.5,2.9,1.9,-0.1,-2.5,2.6,1.5,2.2,1.8,2.5,3.1,1.7,2.2,2.9,2.3,-3.4,5.9,1.9,2.5,2.80], ca:[5.2,1.8,2.9,1.9,3.1,3.2,2.6,2.1,1.0,-2.9,3.1,3.1,1.9,2.3,2.9,0.7,1.0,3.2,2.4,1.9,-5.2,4.5,3.8,1.2,1.53]},
+  unemployment:{label:'Unemployment (%)',   us:[4.0,4.7,5.8,6.0,5.5,5.1,4.6,4.6,5.8,9.3,9.6,9.0,8.1,7.4,6.2,5.3,4.9,4.4,3.9,3.7,8.1,5.4,3.6,3.6,4.11], ca:[6.8,7.2,7.7,7.6,7.2,6.8,6.3,6.0,6.2,8.3,8.0,7.5,7.3,7.1,6.9,6.9,7.0,6.3,5.8,5.7,9.5,7.5,5.3,5.4,6.45]},
+};
+
+function switchM(m, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHist(m);
+}
+
+function renderHist(m) {
+  const cfg = MC[m];
+  const ctx = document.getElementById('histChart').getContext('2d');
+  if (hci) hci.destroy();
+  hci = new Chart(ctx, {
+    type:'line',
+    data:{labels:HISTORICAL.years, datasets:[
+      {label:'🇺🇸 United States',data:cfg.us,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,0.08)',borderWidth:2,pointRadius:3,tension:0.3,fill:m==='debtgdp'},
+      {label:'🇨🇦 Canada',       data:cfg.ca,borderColor:'#f472b6',backgroundColor:'rgba(244,114,182,0.08)',borderWidth:2,pointRadius:3,tension:0.3,fill:m==='debtgdp'},
+    ]},
+    options:{
+      responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:12}}},tooltip:{backgroundColor:'#1a1d26',borderColor:'#2a2d3a',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(2)}%`}}},
+      scales:{x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2a2d3a'}},y:{ticks:{color:'#94a3b8',font:{size:11},callback:v=>v+'%'},grid:{color:'#2a2d3a'}}},
+    },
+  });
+}
+
+let btci = null;
+function runBT() {
+  const c   = document.getElementById('btC').value;
+  const sy  = parseInt(document.getElementById('btY').value);
+  const red = parseFloat(document.getElementById('btR').value);
+  const gb  = parseFloat(document.getElementById('btG').value);
+  const actual = c==='us' ? HISTORICAL.us : HISTORICAL.ca;
+  const years  = HISTORICAL.years;
+  const si = years.indexOf(sy);
+  const sim = [...actual];
+  for (let i=si; i<actual.length; i++) { const yi=i-si; sim[i]=Math.max(0, actual[i]-red*yi-gb*yi*0.8); }
+  const ae=actual[actual.length-1], se=sim[actual.length-1], ds=ae-se;
+  const gdp=c==='us'?29.18:2.24, abs=(ds/100)*gdp, yr=actual.length-1-si;
+  document.getElementById('btRes').classList.add('show');
+  document.getElementById('btSum').innerHTML=`
+    <div class="bt-card"><div class="bt-card-label">Actual Debt/GDP (2024)</div><div class="bt-card-value neg">${ae.toFixed(1)}%</div></div>
+    <div class="bt-card"><div class="bt-card-label">Simulated Debt/GDP (2024)</div><div class="bt-card-value pos">${se.toFixed(1)}%</div></div>
+    <div class="bt-card"><div class="bt-card-label">Debt/GDP Reduction</div><div class="bt-card-value pos">−${ds.toFixed(1)} pts</div></div>
+    <div class="bt-card"><div class="bt-card-label">Est. Debt Saved</div><div class="bt-card-value pos">~$${abs.toFixed(2)}T</div></div>
+    <div class="bt-card"><div class="bt-card-label">Policy Duration</div><div class="bt-card-value neu">${yr} years</div></div>
+    <div class="bt-card"><div class="bt-card-label">Deficit Reduced/yr</div><div class="bt-card-value pos">${red}% GDP</div></div>`;
+  const ctx=document.getElementById('btChart').getContext('2d');
+  if (btci) btci.destroy();
+  btci=new Chart(ctx,{type:'line',data:{labels:years,datasets:[
+    {label:`Actual ${c.toUpperCase()} Debt/GDP`,data:actual,borderColor:c==='us'?'#60a5fa':'#f472b6',borderWidth:2.5,pointRadius:3,tension:0.3},
+    {label:`Simulated (policy from ${sy})`,data:sim,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,0.06)',borderWidth:2,pointRadius:2,tension:0.3,borderDash:[6,3],fill:true},
+  ]},options:{responsive:true,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{color:'#94a3b8',font:{size:12}}},tooltip:{backgroundColor:'#1a1d26',borderColor:'#2a2d3a',borderWidth:1,titleColor:'#e2e8f0',bodyColor:'#94a3b8',callbacks:{label:cc=>` ${cc.dataset.label}: ${cc.parsed.y.toFixed(1)}%`}}},
+    scales:{x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'#2a2d3a'}},y:{ticks:{color:'#94a3b8',font:{size:11},callback:v=>v+'%'},grid:{color:'#2a2d3a'}}}}});
+  const cn=c==='us'?'United States':'Canada';
+  document.getElementById('btIns').innerHTML=`<strong>Backtest Insight:</strong> If ${cn} had implemented a <strong>${red}% of GDP annual deficit reduction</strong> starting in <strong>${sy}</strong> (with a <strong>+${gb}% annual growth boost</strong>), the 2024 Debt/GDP ratio would be approximately <strong>${se.toFixed(1)}%</strong> instead of <strong>${ae.toFixed(1)}%</strong> — a reduction of <strong>${ds.toFixed(1)} percentage points</strong>, equivalent to roughly <strong>~$${abs.toFixed(2)} trillion</strong> less in outstanding debt. ${ds>20?' This would represent a <strong>transformational improvement</strong> in fiscal health.':ds>10?' This would represent a <strong>meaningful improvement</strong>, potentially avoiding the interest cost spiral both countries now face.':' Even modest austerity compounds meaningfully over multiple years.'}`;
+}
+
+async function loadData() {
+  document.getElementById('mainContent').innerHTML='<div class="loading-overlay"><div class="spinner"></div> Fetching live debt data…</div>';
+  if (clockInterval) clearInterval(clockInterval);
   try {
-    const [usData, caData] = await Promise.all([
-      scrapeCountry('united-states'),
-      scrapeCountry('canada'),
-    ]);
-
-    res.status(200).json({
-      source: 'debtclock.io (IMF / World Bank / ECB)',
-      updated: new Date().toISOString(),
-      us: usData,
-      ca: caData,
-    });
-  } catch (err) {
-    console.error('Debt API error:', err);
-    res.status(500).json({ error: err.message });
+    const r = await fetch('/api/debt');
+    if (!r.ok) throw new Error('API '+r.status);
+    const j = await r.json();
+    document.getElementById('updatedTag').textContent='Last updated: '+new Date(j.updated).toLocaleString();
+    renderAll(j.us, j.ca);
+  } catch(err) {
+    console.warn('Live API failed, using fallback:', err);
+    renderAll(
+      {slug:'united-states',dataYear:2024,debtGdpPct:133.88,debtNominal:39071563336400,gdp:29184890000000,population:329484123,interestPerYear:1172146900092,debtPerCitizen:118584,inflation:2.95,gdpGrowth:2.80,unemployment:4.11,budgetBalance:-7.14,fx:null},
+      {slug:'canada',       dataYear:2024,debtGdpPct:95.36, debtNominal:2926593314218, gdp:2241300000000, population:38005238,  interestPerYear:87797799427,  debtPerCitizen:77005, inflation:2.38,gdpGrowth:1.53,unemployment:6.45,budgetBalance:0.50, fx:0.73}
+    );
+    document.getElementById('updatedTag').textContent='Static snapshot — debtclock.io data as of March 19, 2026';
   }
 }
 
-async function scrapeCountry(slug) {
-  const url = `https://debtclock.io/${slug}`;
-  const resp = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HousingTracker/1.0)' },
-  });
-  if (!resp.ok) throw new Error(`${slug} fetch failed: ${resp.status}`);
-  const html = await resp.text();
-
-  const debtGdpMatch = html.match(/Debt as % of GDP[\s\S]{0,200}?([\d.]+)%/i);
-  const debtGdp = debtGdpMatch ? parseFloat(debtGdpMatch[1]) : null;
-
-  const debtMatch = html.match(/\$([\s\d,]+)<\/h1>|<h1[^>]*>\s*([\d,]+)\s*\$/i);
-  const debtRaw = debtMatch ? (debtMatch[1] || debtMatch[2]) : null;
-  const debtNominal = debtRaw ? parseFloat(debtRaw.replace(/[\s,]/g, '')) : null;
-
-  const gdpMatch = html.match(/GDP \(nominal\)[\s\S]{0,300}?\$([\s\d,]+)/i);
-  const gdp = gdpMatch ? parseFloat(gdpMatch[1].replace(/[\s,]/g, '')) : null;
-
-  const popMatch = html.match(/Population[\s\S]{0,200}?([\d,]+)\s*<\/(?:p|dd|td)/i);
-  const population = popMatch ? parseFloat(popMatch[1].replace(/,/g, '')) : null;
-
-  const intMatch = html.match(/Interest per Year[\s\S]{0,300}?\$([\s\d,]+)/i);
-  const interestPerYear = intMatch ? parseFloat(intMatch[1].replace(/[\s,]/g, '')) : null;
-
-  const debtCapMatch = html.match(/Debt per Citizen[\s\S]{0,300}?\$([\s\d,]+)/i);
-  const debtPerCitizen = debtCapMatch ? parseFloat(debtCapMatch[1].replace(/[\s,]/g, '')) : null;
-
-  const cpiMatch = html.match(/Inflation \(CPI[^)]*\)[\s\S]{0,200}?([\d.]+)%/i);
-  const inflation = cpiMatch ? parseFloat(cpiMatch[1]) : null;
-
-  const growthMatch = html.match(/GDP growth[^)]*[\s\S]{0,200}?([\d.]+)%/i);
-  const gdpGrowth = growthMatch ? parseFloat(growthMatch[1]) : null;
-
-  const unempMatch = html.match(/Unemployment[\s\S]{0,200}?([\d.]+)%/i);
-  const unemployment = unempMatch ? parseFloat(unempMatch[1]) : null;
-
-  const budgetMatch = html.match(/Budget balance[^)]*[\s\S]{0,200}?(-?[\d.]+)%/i);
-  const budgetBalance = budgetMatch ? parseFloat(budgetMatch[1]) : null;
-
-  const fxMatch = html.match(/FX \(USD[\s\S]{0,200}?([\d.]+)/i);
-  const fx = fxMatch ? parseFloat(fxMatch[1]) : null;
-
-  const yearMatch = html.match(/Latest year:\s*(\d{4})/i);
-  const dataYear = yearMatch ? parseInt(yearMatch[1]) : 2024;
-
-  return {
-    slug, dataYear, debtGdpPct: debtGdp, debtNominal, gdp, population,
-    interestPerYear, debtPerCitizen, inflation, gdpGrowth, unemployment,
-    budgetBalance, fx,
-  };
-}
+loadData();
+</script>
+</body>
+</html>
