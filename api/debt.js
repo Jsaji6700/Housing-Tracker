@@ -1,198 +1,73 @@
-// api/debt.js — National Debt Clock data
-// Priority: 1) Treasury FiscalData API (live, no key) → 2) FRED → 3) StatsCan → 4) fallback
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
 
-  const FRED_KEY = process.env.FRED_API_KEY || '';
-
-  // ── Hardcoded fallback values (updated March 2026) ───────────────────────
-  const FALLBACK = {
-    us: {
-      debt_total:      36_500_000_000_000,  // $36.5T (Mar 2026)
-      gdp:             29_300_000_000_000,  // $29.3T GDP
-      population:         335_000_000,      // 335M
-      revenue:          4_900_000_000_000,  // $4.9T annual
-      spending:         6_700_000_000_000,  // $6.7T annual
-      deficit:          1_800_000_000_000,  // $1.8T annual
-      interest:           900_000_000_000,  // $900B annual
-      social_security:  1_400_000_000_000,  // $1.4T annual
-      debt_to_gdp:      '124.6',
-      debt_per_citizen:  108955,
-      unfunded_est:   175_000_000_000_000,  // ~$175T
-      debt_date:        '2026-01-31',
-      source:           'fallback',
-    },
-    ca: {
-      debt_total:      1_400_000_000_000,   // ~C$1.4T federal debt
-      gdp:             2_800_000_000_000,   // ~C$2.8T GDP
-      population:          40_000_000,      // 40M
-      revenue:           500_000_000_000,   // ~C$500B
-      spending:          550_000_000_000,   // ~C$550B
-      deficit:            50_000_000_000,   // ~C$50B
-      interest:           55_000_000_000,   // ~C$55B
-      social_security:   120_000_000_000,   // OAS+CPP ~C$120B
-      debt_to_gdp:       '50.0',
-      debt_per_citizen:   35000,
-      unfunded_est:    3_200_000_000_000,   // ~C$3.2T
-      debt_date:         '2025-12-31',
-      source:            'fallback',
-    },
-  };
-
-  const out = { us: { ...FALLBACK.us }, ca: { ...FALLBACK.ca }, ts: Date.now() };
-
-  // ── PRIORITY 1: US Treasury FiscalData API (live, no API key needed) ─────
-  // Returns daily debt-to-the-penny — most accurate and real-time source
   try {
-    const treasuryUrl = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt,debt_held_public_amt,intragov_hold_amt&sort=-record_date&limit=2';
-    const treasuryR = await fetch(treasuryUrl, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(8000),
+    const [usData, caData] = await Promise.all([
+      scrapeCountry('united-states'),
+      scrapeCountry('canada'),
+    ]);
+
+    res.status(200).json({
+      source: 'debtclock.io (IMF / World Bank / ECB)',
+      updated: new Date().toISOString(),
+      us: usData,
+      ca: caData,
     });
-    if (treasuryR.ok) {
-      const treasuryJ = await treasuryR.json();
-      const data = treasuryJ?.data;
-      if (data && data.length > 0) {
-        const latest = data[0];
-        const debt = parseFloat(latest.tot_pub_debt_out_amt);
-        if (debt > 1e13 && debt < 1e15) { // sanity: between $10T and $1Q
-          out.us.debt_total = debt;
-          out.us.debt_date  = latest.record_date;
-          out.us.source     = 'treasury_fiscal_data';
-          if (latest.debt_held_public_amt) {
-            out.us.debt_held_public = parseFloat(latest.debt_held_public_amt);
-          }
-          if (latest.intragov_hold_amt) {
-            out.us.intragov_holdings = parseFloat(latest.intragov_hold_amt);
-          }
-          // Calculate daily change for per-second rate
-          if (data.length > 1) {
-            const prev = parseFloat(data[1].tot_pub_debt_out_amt);
-            if (!isNaN(prev) && prev > 0) {
-              const dailyChange = debt - prev;
-              if (dailyChange > 0 && dailyChange < 5e10) { // sanity: < $50B/day
-                out.us.deficit_per_sec = dailyChange / 86400;
-                out.us.prev_debt = prev;
-                out.us.prev_debt_date = data[1].record_date;
-              }
-            }
-          }
-        }
-      }
-    }
-  } catch(e) {
-    // Fall through to FRED
-    console.error('Treasury API failed:', e.message);
+  } catch (err) {
+    console.error('Debt API error:', err);
+    res.status(500).json({ error: err.message });
   }
+}
 
-  // ── PRIORITY 2: FRED (US enriched data) ──────────────────────────────────
-  if (FRED_KEY) {
-    try {
-      const fredFetch = async (id, lim) => {
-        lim = lim || 2;
-        const r = await fetch(
-          `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${FRED_KEY}&sort_order=desc&limit=${lim}&file_type=json`,
-          { signal: AbortSignal.timeout(5000) }
-        );
-        const j = await r.json();
-        const obs = (j.observations || []).filter(o => o.value !== '.' && o.value !== '');
-        return obs.length ? { value: parseFloat(obs[0].value), date: obs[0].date } : null;
-      };
+async function scrapeCountry(slug) {
+  const url = `https://debtclock.io/${slug}`;
+  const resp = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HousingTracker/1.0)' },
+  });
+  if (!resp.ok) throw new Error(`${slug} fetch failed: ${resp.status}`);
+  const html = await resp.text();
 
-      const [debt, gdp, pop, rev, spend, ss, interest] = await Promise.all([
-        fredFetch('GFDEBTN'),       // millions — use as fallback if Treasury failed
-        fredFetch('GDP'),           // billions
-        fredFetch('POP'),           // thousands
-        fredFetch('FYFR'),          // millions
-        fredFetch('FYOFD'),         // millions
-        fredFetch('FYOFSSS'),       // millions
-        fredFetch('FYOINT'),        // millions
-      ]);
+  const debtGdpMatch = html.match(/Debt as % of GDP[\s\S]{0,200}?([\d.]+)%/i);
+  const debtGdp = debtGdpMatch ? parseFloat(debtGdpMatch[1]) : null;
 
-      // Only overwrite debt_total with FRED if Treasury failed (Treasury is more accurate)
-      if (out.us.source !== 'treasury_fiscal_data' && debt?.value > 1000) {
-        out.us.debt_total = debt.value * 1e6;
-        out.us.debt_date  = debt.date;
-        out.us.source     = 'FRED';
-      } else if (debt?.value > 1000 && out.us.source === 'treasury_fiscal_data') {
-        // Still capture FRED for FRED source tag
-        out.us.source = 'treasury_fiscal_data+FRED';
-      }
+  const debtMatch = html.match(/\$([\s\d,]+)<\/h1>|<h1[^>]*>\s*([\d,]+)\s*\$/i);
+  const debtRaw = debtMatch ? (debtMatch[1] || debtMatch[2]) : null;
+  const debtNominal = debtRaw ? parseFloat(debtRaw.replace(/[\s,]/g, '')) : null;
 
-      if (gdp?.value    > 1000)  out.us.gdp             = gdp.value * 1e9;
-      if (pop?.value    > 1000)  out.us.population      = pop.value * 1000;
-      if (rev?.value    > 100)   out.us.revenue         = rev.value * 1e6;
-      if (spend?.value  > 100)   out.us.spending        = spend.value * 1e6;
-      if (ss?.value     > 1)     out.us.social_security = ss.value * 1e6;
-      if (interest?.value > 1)   out.us.interest        = interest.value * 1e6;
+  const gdpMatch = html.match(/GDP \(nominal\)[\s\S]{0,300}?\$([\s\d,]+)/i);
+  const gdp = gdpMatch ? parseFloat(gdpMatch[1].replace(/[\s,]/g, '')) : null;
 
-      // Recalculate derived
-      if (out.us.spending && out.us.revenue) {
-        out.us.deficit = Math.max(0, out.us.spending - out.us.revenue);
-      }
-    } catch { /* keep existing */ }
+  const popMatch = html.match(/Population[\s\S]{0,200}?([\d,]+)\s*<\/(?:p|dd|td)/i);
+  const population = popMatch ? parseFloat(popMatch[1].replace(/,/g, '')) : null;
 
-    // ── StatsCan for Canada ─────────────────────────────────────────────────
-    try {
-      const scR = await fetch(
-        'https://www150.statcan.gc.ca/t1/tbl1/en/dtbl/json/getDataFromVectorsAndLatestNPeriods',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify([
-            { vectorId: 1530814, latestN: 2 },
-            { vectorId: 3820818, latestN: 2 },
-            { vectorId: 3820819, latestN: 2 },
-          ]),
-          signal: AbortSignal.timeout(8000),
-        }
-      );
-      if (scR.ok) {
-        const scJ = await scR.json();
-        const arr = Array.isArray(scJ) ? scJ : [];
-        const parse = obj => {
-          const pts = (obj?.vectorDataPoint || []).sort((a, b) => (a.refPer || '').localeCompare(b.refPer || ''));
-          return pts.length ? { value: parseFloat(pts[pts.length - 1].value), date: pts[pts.length - 1].refPer } : null;
-        };
-        const [caDebt, caRev, caSpend] = arr.map(parse);
-        if (caDebt?.value  > 1)   { out.ca.debt_total = caDebt.value  * 1e6; out.ca.debt_date = caDebt.date; out.ca.source = 'StatsCan'; }
-        if (caRev?.value   > 1)     out.ca.revenue    = caRev.value   * 1e6;
-        if (caSpend?.value > 1)     out.ca.spending   = caSpend.value * 1e6;
-        if (out.ca.spending && out.ca.revenue) out.ca.deficit = Math.max(0, out.ca.spending - out.ca.revenue);
-      }
-    } catch { /* keep fallback */ }
-  }
+  const intMatch = html.match(/Interest per Year[\s\S]{0,300}?\$([\s\d,]+)/i);
+  const interestPerYear = intMatch ? parseFloat(intMatch[1].replace(/[\s,]/g, '')) : null;
 
-  // ── Recalculate derived values for US ─────────────────────────────────────
-  if (out.us.debt_total && out.us.gdp) {
-    out.us.debt_to_gdp = (out.us.debt_total / out.us.gdp * 100).toFixed(1);
-  }
-  if (out.us.debt_total && out.us.population) {
-    out.us.debt_per_citizen = Math.round(out.us.debt_total / out.us.population);
-  }
+  const debtCapMatch = html.match(/Debt per Citizen[\s\S]{0,300}?\$([\s\d,]+)/i);
+  const debtPerCitizen = debtCapMatch ? parseFloat(debtCapMatch[1].replace(/[\s,]/g, '')) : null;
 
-  // ── Recalculate derived for CA ─────────────────────────────────────────────
-  if (out.ca.debt_total && out.ca.gdp) {
-    out.ca.debt_to_gdp = (out.ca.debt_total / out.ca.gdp * 100).toFixed(1);
-  }
-  if (out.ca.debt_total && out.ca.population) {
-    out.ca.debt_per_citizen = Math.round(out.ca.debt_total / out.ca.population);
-  }
+  const cpiMatch = html.match(/Inflation \(CPI[^)]*\)[\s\S]{0,200}?([\d.]+)%/i);
+  const inflation = cpiMatch ? parseFloat(cpiMatch[1]) : null;
 
-  // ── Per-second rates for real-time ticking ─────────────────────────────────
-  out.us.debt_per_sec     = (out.us.deficit_per_sec  || (out.us.deficit  || 1_800_000_000_000) / (365.25 * 86400));
-  out.us.deficit_per_sec  = out.us.debt_per_sec;
-  out.us.interest_per_sec = (out.us.interest   || 900_000_000_000)   / (365.25 * 86400);
-  out.us.spending_per_sec = (out.us.spending   || 6_700_000_000_000) / (365.25 * 86400);
-  out.us.revenue_per_sec  = (out.us.revenue    || 4_900_000_000_000) / (365.25 * 86400);
+  const growthMatch = html.match(/GDP growth[^)]*[\s\S]{0,200}?([\d.]+)%/i);
+  const gdpGrowth = growthMatch ? parseFloat(growthMatch[1]) : null;
 
-  out.ca.debt_per_sec     = (out.ca.deficit    || 50_000_000_000)    / (365.25 * 86400);
-  out.ca.deficit_per_sec  = out.ca.debt_per_sec;
-  out.ca.interest_per_sec = (out.ca.interest   || 55_000_000_000)    / (365.25 * 86400);
-  out.ca.spending_per_sec = (out.ca.spending   || 550_000_000_000)   / (365.25 * 86400);
-  out.ca.revenue_per_sec  = (out.ca.revenue    || 500_000_000_000)   / (365.25 * 86400);
+  const unempMatch = html.match(/Unemployment[\s\S]{0,200}?([\d.]+)%/i);
+  const unemployment = unempMatch ? parseFloat(unempMatch[1]) : null;
 
-  return res.status(200).json(out);
+  const budgetMatch = html.match(/Budget balance[^)]*[\s\S]{0,200}?(-?[\d.]+)%/i);
+  const budgetBalance = budgetMatch ? parseFloat(budgetMatch[1]) : null;
+
+  const fxMatch = html.match(/FX \(USD[\s\S]{0,200}?([\d.]+)/i);
+  const fx = fxMatch ? parseFloat(fxMatch[1]) : null;
+
+  const yearMatch = html.match(/Latest year:\s*(\d{4})/i);
+  const dataYear = yearMatch ? parseInt(yearMatch[1]) : 2024;
+
+  return {
+    slug, dataYear, debtGdpPct: debtGdp, debtNominal, gdp, population,
+    interestPerYear, debtPerCitizen, inflation, gdpGrowth, unemployment,
+    budgetBalance, fx,
+  };
 }
