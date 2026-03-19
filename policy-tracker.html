@@ -282,6 +282,35 @@ body::before {
 
 
 
+
+/* ── DEBT CLOCK ─────────────────────────────────────────────── */
+.dc-wrap { background:var(--s1); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:20px; }
+.dc-header { background:linear-gradient(90deg,rgba(229,57,53,.1),transparent); padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.dc-header-title { font-family:var(--display); font-size:18px; letter-spacing:.05em; color:var(--red); }
+.dc-header-sub   { font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:2px; }
+.dc-counter { padding:24px 20px; text-align:center; border-bottom:1px solid var(--border); background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(229,57,53,.05),transparent); }
+.dc-counter-label { font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.dc-counter-num { font-family:var(--display); font-size:clamp(26px,4vw,46px); color:var(--red); letter-spacing:.02em; line-height:1; font-variant-numeric:tabular-nums; }
+.dc-counter-sub { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:6px; }
+.dc-tickers { display:flex; align-items:center; justify-content:space-around; padding:10px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+.dc-ticker { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.dc-ticker-val { font-family:var(--mono); font-size:12px; color:var(--red); font-weight:500; font-variant-numeric:tabular-nums; min-width:120px; text-align:center; }
+.dc-ticker-lbl { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:.06em; }
+.dc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1px; background:var(--border); }
+.dc-cell { background:var(--s1); padding:16px 20px; transition:background .15s; }
+.dc-cell:hover { background:var(--s2); }
+.dc-cell-label { font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.dc-cell-val { font-family:var(--display); font-size:22px; line-height:1; }
+.dc-cell-val.red  { color:var(--red); }
+.dc-cell-val.warn { color:var(--orange); }
+.dc-cell-val.good { color:var(--green); }
+.dc-cell-sub { font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:4px; }
+.dc-bar-wrap { padding:16px 20px; border-top:1px solid var(--border); }
+.dc-bar-labels { display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:6px; }
+.dc-bar-track { height:8px; border-radius:4px; background:var(--s3); overflow:hidden; }
+.dc-bar-fill { height:100%; border-radius:4px; background:var(--green); transition:width .5s; width:0%; }
+.dc-bar-sublabels { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--muted2); margin-top:4px; }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -853,6 +882,54 @@ body::before {
 
 
 
+
+  <!-- DEBT CLOCK ─────────────────────────────────────────────────────── -->
+  <div class="section-wrap">
+    <div class="section-title" id="dc-section-title">National Debt Clock — United States</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px">Real-time estimate · ticks every second · based on latest Treasury &amp; FRED data</div>
+
+    <div class="dc-wrap">
+      <div class="dc-header">
+        <div>
+          <div class="dc-header-title" id="dc-title">🇺🇸 U.S. National Debt</div>
+          <div class="dc-header-sub" id="dc-sub">Source: U.S. Treasury / FRED · Updated hourly</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="dc-asof"></div>
+      </div>
+
+      <div class="dc-counter">
+        <div class="dc-counter-label">Total National Debt</div>
+        <div class="dc-counter-num" id="dc-total">Loading…</div>
+        <div class="dc-counter-sub" id="dc-rate">fetching live data…</div>
+      </div>
+
+      <div class="dc-tickers">
+        <div class="dc-ticker"><div class="dc-ticker-val" id="dc-t-debt">+$—</div><div class="dc-ticker-lbl">DEBT / SEC</div></div>
+        <div class="dc-ticker"><div class="dc-ticker-val" id="dc-t-deficit">+$—</div><div class="dc-ticker-lbl">DEFICIT / SEC</div></div>
+        <div class="dc-ticker"><div class="dc-ticker-val" id="dc-t-interest">+$—</div><div class="dc-ticker-lbl">INTEREST / SEC</div></div>
+        <div class="dc-ticker"><div class="dc-ticker-val" id="dc-t-spending">+$—</div><div class="dc-ticker-lbl">SPENDING / SEC</div></div>
+      </div>
+
+      <div class="dc-grid">
+        <div class="dc-cell"><div class="dc-cell-label">Debt per Citizen</div><div class="dc-cell-val red" id="dc-per-citizen">—</div><div class="dc-cell-sub" id="dc-pop">—</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Debt / GDP Ratio</div><div class="dc-cell-val warn" id="dc-gdp-ratio">—</div><div class="dc-cell-sub" id="dc-gdp-val">GDP: —</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Federal Revenue</div><div class="dc-cell-val good" id="dc-revenue">—</div><div class="dc-cell-sub">Annual</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Federal Spending</div><div class="dc-cell-val red" id="dc-spending">—</div><div class="dc-cell-sub">Annual</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Annual Deficit</div><div class="dc-cell-val red" id="dc-deficit">—</div><div class="dc-cell-sub">Spending − Revenue</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Interest on Debt</div><div class="dc-cell-val warn" id="dc-interest">—</div><div class="dc-cell-sub">Annual payments</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Social Security</div><div class="dc-cell-val warn" id="dc-ss">—</div><div class="dc-cell-sub" id="dc-ss-sub">Annual outlays</div></div>
+        <div class="dc-cell"><div class="dc-cell-label">Unfunded Liabilities</div><div class="dc-cell-val red" id="dc-unfunded">—</div><div class="dc-cell-sub" id="dc-unfunded-sub">Est. future obligations</div></div>
+      </div>
+
+      <div class="dc-bar-wrap">
+        <div class="dc-bar-labels"><span>Revenue vs Spending</span><span id="dc-surplus-label">—</span></div>
+        <div class="dc-bar-track"><div class="dc-bar-fill" id="dc-rev-bar"></div></div>
+        <div class="dc-bar-sublabels"><span id="dc-rev-label">Revenue: —</span><span id="dc-spend-label">Spending: —</span></div>
+      </div>
+    </div>
+    <div class="data-source" id="dc-source">Source: U.S. Treasury, FRED, Statistics Canada · Updated hourly</div>
+  </div>
+
   <!-- FOOTER -->
   <div style="border-top:1px solid var(--border); padding-top:20px; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px">
     <div>Policy Tracker · Part of Housing Tracker</div>
@@ -1034,6 +1111,8 @@ function renderCountryData(c) {
 
   // Fetch live scores for selected country
   fetchLiveRates(c);
+  // Update debt clock (safe — just re-renders cached data)
+  updateDebtClockCountry(c);
 }
 
 // ── Live data fetch via FRED (same API as main tracker) ──────────────────────
@@ -1152,85 +1231,76 @@ function setChange(elId, chg) {
 }
 
 async function fetchMetals() {
-  // Try sources in order until one works
+  let gotGold = false, gotSilver = false, gotEquities = false;
 
-  // 1. /api/metals — our Vercel server proxy (most reliable, server-side fetch)
+  // 1. goldprice.org — browser-direct, same backend as Kitco
   try {
-    const r = await fetch('/api/metals', { cache: 'no-cache', signal: AbortSignal.timeout(10000) });
-    if (r.ok) {
-      const j = await r.json();
-      if (j?.gold?.price && j.gold.price > 500) {
-        setPrice('gold-p', j.gold.price, '$', 0);
-        if (j.gold.open && j.gold.open > 0)
-          setChange('gold-d', ((j.gold.price - j.gold.open) / j.gold.open * 100).toFixed(2));
-      }
-      if (j?.silver?.price && j.silver.price > 5) {
-        setPrice('silv-p', j.silver.price, '$', 2);
-        if (j.silver.open && j.silver.open > 0)
-          setChange('silv-d', ((j.silver.price - j.silver.open) / j.silver.open * 100).toFixed(2));
-      }
-      if (j?.platinum?.price && j.platinum.price > 100) {
-        setPrice('plat-p', j.platinum.price, '$', 0);
-      }
-      // S&P 500 and Dow Jones — server-side fetch avoids CORS
-      if (j?.sp500?.price && j.sp500.price > 100) {
-        document.getElementById('sp-p').textContent = Math.round(j.sp500.price).toLocaleString();
-        if (j.sp500.open) setChange('sp-d', ((j.sp500.price - j.sp500.open) / j.sp500.open * 100).toFixed(2));
-      }
-      if (j?.dji?.price && j.dji.price > 100) {
-        document.getElementById('dj-p').textContent = Math.round(j.dji.price).toLocaleString();
-        if (j.dji.open) setChange('dj-d', ((j.dji.price - j.dji.open) / j.dji.open * 100).toFixed(2));
-      }
-      return true;
-    }
-  } catch { /* try next */ }
-
-  // 2. goldprice.org direct (CORS open)
-  try {
-    const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD', { cache: 'no-cache' });
+    const r = await fetch('https://data-asg.goldprice.org/dbXRates/USD');
     if (r.ok) {
       const j = await r.json();
       const item = j?.items?.[0];
-      if (item?.xauPrice && item.xauPrice > 500) {
+      if (item?.xauPrice > 3000 && item.xauPrice < 8000) {
         setPrice('gold-p', item.xauPrice, '$', 0);
-        if (item.xauOpen) setChange('gold-d', ((item.xauPrice - item.xauOpen) / item.xauOpen * 100).toFixed(2));
+        if (item.xauOpen) setChange('gold-d', ((item.xauPrice-item.xauOpen)/item.xauOpen*100).toFixed(2));
+        gotGold = true;
       }
-      if (item?.xagPrice && item.xagPrice > 5) {
+      if (item?.xagPrice > 40 && item.xagPrice < 200) {
         setPrice('silv-p', item.xagPrice, '$', 2);
-        if (item.xagOpen) setChange('silv-d', ((item.xagPrice - item.xagOpen) / item.xagOpen * 100).toFixed(2));
+        if (item.xagOpen) setChange('silv-d', ((item.xagPrice-item.xagOpen)/item.xagOpen*100).toFixed(2));
+        gotSilver = true;
       }
-      return true;
     }
-  } catch { /* try next */ }
+  } catch {}
 
-  // 3. metals.live direct
+  // 2. metals.live — free, no key, browser-direct
+  if (!gotGold || !gotSilver) {
+    try {
+      const r = await fetch('https://api.metals.live/v1/spot');
+      if (r.ok) {
+        const j = await r.json();
+        if (!gotGold   && j?.gold   > 3000 && j.gold   < 8000) { setPrice('gold-p', Math.round(j.gold),           '$', 0); gotGold   = true; }
+        if (!gotSilver && j?.silver > 40   && j.silver < 200)  { setPrice('silv-p', parseFloat(j.silver.toFixed(2)),'$', 2); gotSilver = true; }
+        if (j?.platinum > 500) setPrice('plat-p', Math.round(j.platinum), '$', 0);
+      }
+    } catch {}
+  }
+
+  // 3. /api/metals server proxy — equities + any still missing metals
   try {
-    const r = await fetch('https://api.metals.live/v1/spot', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+    const r = await fetch('/api/metals');
     if (r.ok) {
       const j = await r.json();
-      if (j?.gold   && j.gold   > 3000) setPrice('gold-p', j.gold,   '$', 0);
-      if (j?.silver && j.silver > 40)   setPrice('silv-p', j.silver, '$', 2);
-      if (j?.platinum && j.platinum > 500) setPrice('plat-p', j.platinum, '$', 0);
-      return true;
+      if (!gotGold   && j?.gold?.price   > 3000) { setPrice('gold-p',  j.gold.price,   '$', 0); if(j.gold.open)   setChange('gold-d',   ((j.gold.price  -j.gold.open)  /j.gold.open  *100).toFixed(2)); }
+      if (!gotSilver && j?.silver?.price > 40)   { setPrice('silv-p',  j.silver.price, '$', 2); if(j.silver.open) setChange('silv-d',  ((j.silver.price-j.silver.open)/j.silver.open*100).toFixed(2)); }
+      if (j?.platinum?.price > 500) setPrice('plat-p', j.platinum.price, '$', 0);
+      if (j?.sp500?.price > 1000) {
+        document.getElementById('sp-p').textContent = Math.round(j.sp500.price).toLocaleString();
+        if (j.sp500.open) setChange('sp-d', ((j.sp500.price-j.sp500.open)/j.sp500.open*100).toFixed(2));
+        gotEquities = true;
+      }
+      if (j?.dji?.price > 10000) {
+        document.getElementById('dj-p').textContent = Math.round(j.dji.price).toLocaleString();
+        if (j.dji.open) setChange('dj-d', ((j.dji.price-j.dji.open)/j.dji.open*100).toFixed(2));
+      }
     }
-  } catch { /* try hardcoded */ }
+  } catch {}
 
-  // 4. Last resort: show last known values so page isn't blank
-  const KNOWN_PRICES = {
-    gold: 3020, silver: 33.50, platinum: 988,
-    sp500: 5580, dji: 41800
-  };
-  if (document.getElementById('gold-p').textContent === '—') {
-    setPrice('gold-p', KNOWN_PRICES.gold, '$', 0);
-    document.getElementById('gold-d').textContent = '~est';
-    document.getElementById('gold-d').className = 'inv-change-flat';
+  // 4. Yahoo Finance direct for S&P/Dow if still missing
+  if (!gotEquities) {
+    await Promise.allSettled([
+      {sym:'%5EGSPC', pid:'sp-p', cid:'sp-d', min:1000},
+      {sym:'%5EDJI',  pid:'dj-p', cid:'dj-d', min:10000},
+    ].map(async ({sym,pid,cid,min}) => {
+      try {
+        const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`);
+        if (!r.ok) return;
+        const meta = (await r.json())?.chart?.result?.[0]?.meta;
+        if (!meta?.regularMarketPrice || meta.regularMarketPrice < min) return;
+        document.getElementById(pid).textContent = Math.round(meta.regularMarketPrice).toLocaleString();
+        if (meta.chartPreviousClose) setChange(cid, ((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2));
+      } catch {}
+    }));
   }
-  if (document.getElementById('silv-p').textContent === '—') {
-    setPrice('silv-p', KNOWN_PRICES.silver, '$', 2);
-    document.getElementById('silv-d').textContent = '~est';
-    document.getElementById('silv-d').className = 'inv-change-flat';
-  }
-  return false;
 }
 
 async function fetchCrypto() {
@@ -1473,8 +1543,135 @@ function formatCalDay(dateStr) {
 setCountry(country);
 fetchCrypto();
 loadCalendar('this');
+fetchDebtClock(country);
+setInterval(() => fetchDebtClock(country), 3600000);
 
 
+
+
+// ── DEBT CLOCK ───────────────────────────────────────────────────────────────
+// Standalone — does NOT touch setCountry or any existing function
+let _dcData   = null;   // raw API response
+let _dcBase   = 0;      // debt value at fetch time
+let _dcTs     = 0;      // ms timestamp of fetch
+let _dcPerSec = 0;      // debt growth per second
+let _dcDefPS  = 0;      // deficit per second
+let _dcIntPS  = 0;      // interest per second
+let _dcSpndPS = 0;      // spending per second
+let _dcTimer  = null;
+
+function _dcFmt(n, sym) {
+  sym = sym || '$';
+  if (!n || isNaN(n)) return '—';
+  if (n >= 1e12) return sym + (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return sym + (n / 1e9).toFixed(1)  + 'B';
+  if (n >= 1e6)  return sym + (n / 1e6).toFixed(1)  + 'M';
+  return sym + Math.round(n).toLocaleString();
+}
+
+function _dcSet(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+async function fetchDebtClock(c) {
+  c = c || country;
+  try {
+    const r = await fetch('/api/scores');
+    if (!r.ok) throw new Error('scores api ' + r.status);
+    const j = await r.json();
+    // scores.js now returns debtUS and debtCA
+    const debtWrapped = { us: j.debtUS, ca: j.debtCA, ts: Date.now() };
+    _dcData = debtWrapped;
+    _dcRender(c, debtWrapped);
+  } catch(e) {
+    _dcSet('dc-total', 'Data unavailable');
+    _dcSet('dc-rate', e.message);
+  }
+}
+
+function _dcRender(c, j) {
+  const isCA = c === 'ca';
+  const d    = isCA ? j.ca : j.us;
+  const sym  = isCA ? 'C$' : '$';
+
+  if (!d) { _dcSet('dc-total', 'No data'); return; }
+
+  // Labels
+  _dcSet('dc-section-title', isCA ? 'National Debt Clock — Canada'       : 'National Debt Clock — United States');
+  _dcSet('dc-title',         isCA ? '🇨🇦 Canada Federal Debt'             : '🇺🇸 U.S. National Debt');
+  _dcSet('dc-sub',           isCA ? 'Source: Statistics Canada · Updated hourly' : 'Source: U.S. Treasury / FRED · Updated hourly');
+  _dcSet('dc-source',        isCA ? 'Source: Statistics Canada, Bank of Canada · Updated hourly' : 'Source: U.S. Treasury, FRED · Updated hourly');
+  _dcSet('dc-unfunded',      isCA ? '~C$3.2T' : '~$175T');
+  _dcSet('dc-unfunded-sub',  isCA ? 'CPP + OAS est.' : 'SS + Medicare est.');
+  _dcSet('dc-ss-sub',        isCA ? 'Annual (OAS/CPP)' : 'Annual outlays');
+
+  // Set up ticker
+  if (d.debt_total) {
+    _dcBase   = d.debt_total;
+    _dcTs     = j.ts || Date.now();
+    // Use pre-calculated per-sec values from API (avoids division errors)
+    _dcPerSec = d.debt_per_sec     || d.deficit_per_sec || (isCA ? 1585 : 57039);
+    _dcDefPS  = d.deficit_per_sec  || _dcPerSec;
+    _dcIntPS  = d.interest_per_sec || 0;
+    _dcSpndPS = d.spending_per_sec || 0;
+    _dcSet('dc-rate', '≈ +' + sym + Math.round(_dcPerSec).toLocaleString() + ' per second');
+    if (_dcTimer) clearInterval(_dcTimer);
+    _dcTick(sym);
+    _dcTimer = setInterval(() => _dcTick(sym), 1000);
+    // Show source note if using fallback
+    if (d.source === 'fallback') {
+      _dcSet('dc-asof', 'Est. values · FRED updating…');
+    }
+  } else {
+    _dcSet('dc-total', 'Loading…');
+  }
+
+  // Metrics
+  if (d.debt_per_citizen) _dcSet('dc-per-citizen', sym + Math.round(d.debt_per_citizen).toLocaleString());
+  if (d.population)       _dcSet('dc-pop', 'Pop: ' + (d.population / 1e6).toFixed(1) + 'M');
+  if (d.debt_to_gdp) {
+    _dcSet('dc-gdp-ratio', d.debt_to_gdp + '%');
+    const el = document.getElementById('dc-gdp-ratio');
+    if (el) el.className = 'dc-cell-val ' + (parseFloat(d.debt_to_gdp) > 120 ? 'red' : parseFloat(d.debt_to_gdp) > 80 ? 'warn' : 'good');
+  }
+  if (d.gdp)      _dcSet('dc-gdp-val', 'GDP: ' + _dcFmt(d.gdp, sym));
+  if (d.revenue)  _dcSet('dc-revenue',  _dcFmt(d.revenue,  sym));
+  if (d.spending) _dcSet('dc-spending', _dcFmt(d.spending, sym));
+  if (d.deficit) {
+    _dcSet('dc-deficit', _dcFmt(Math.abs(d.deficit), sym));
+    _dcSet('dc-surplus-label', d.deficit > 0 ? '⚠ Deficit' : '✓ Surplus');
+  }
+  if (d.interest)        _dcSet('dc-interest', _dcFmt(d.interest, sym));
+  if (d.social_security) _dcSet('dc-ss',       _dcFmt(d.social_security, sym));
+  if (d.debt_date)       _dcSet('dc-asof', 'As of ' + d.debt_date);
+
+  // Revenue vs spending bar
+  if (d.revenue && d.spending) {
+    const pct = Math.min(99, Math.round(d.revenue / d.spending * 100));
+    const bar = document.getElementById('dc-rev-bar');
+    if (bar) bar.style.width = pct + '%';
+    _dcSet('dc-rev-label',   'Revenue: '  + _dcFmt(d.revenue,  sym));
+    _dcSet('dc-spend-label', 'Spending: ' + _dcFmt(d.spending, sym));
+  }
+}
+
+function _dcTick(sym) {
+  if (!_dcBase) return;
+  sym = sym || (country === 'ca' ? 'C$' : '$');
+  const elapsed = (Date.now() - _dcTs) / 1000;
+  const current = Math.round(_dcBase + _dcPerSec * elapsed);
+  _dcSet('dc-total',      sym + current.toLocaleString());
+  _dcSet('dc-t-debt',     '+' + sym + Math.round(_dcPerSec).toLocaleString());
+  _dcSet('dc-t-deficit',  '+' + sym + Math.round(_dcDefPS).toLocaleString());
+  _dcSet('dc-t-interest', '+' + sym + Math.round(_dcIntPS).toLocaleString());
+  _dcSet('dc-t-spending', '+' + sym + Math.round(_dcSpndPS).toLocaleString());
+}
+
+// Called by renderCountryData when country switches — safe, no override
+function updateDebtClockCountry(c) {
+  if (_dcData) _dcRender(c, _dcData);
+}
 
 </script>
 </body>
