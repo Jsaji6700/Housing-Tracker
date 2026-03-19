@@ -1189,6 +1189,8 @@ function renderCountryData(c) {
 
   // Fetch live scores for selected country
   fetchLiveRates(c);
+  // Update debt clock for country
+  if (debtData) renderDebtClock(c, debtData);
 }
 
 // ── Live data fetch via FRED (same API as main tracker) ──────────────────────
@@ -1609,6 +1611,8 @@ function formatCalDay(dateStr) {
 }
 
 // Load on init
+setCountry(country);
+fetchCrypto();
 loadCalendar('this');
 
 
@@ -1748,16 +1752,7 @@ function formatBig(n, sym='$') {
   return sym + Math.round(n).toLocaleString();
 }
 
-// Hook into country toggle
-const _origSetCountry = setCountry;
-// Extend setCountry to also update debt clock
-const _baseSetCountry = setCountry;
-function setCountry(c) {
-  _baseSetCountry(c);
-  if (debtData) renderDebtClock(c, debtData);
-}
-
-// Load on init
+// Load on init (debt)
 fetchDebtData(country);
 setInterval(() => fetchDebtData(country), 3600000); // refresh hourly
 
