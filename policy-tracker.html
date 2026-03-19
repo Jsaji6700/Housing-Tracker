@@ -281,56 +281,6 @@ body::before {
 }
 
 
-/* ── DEBT CLOCK ── */
-.debt-wrap {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  overflow: hidden; margin-bottom: 20px;
-}
-.debt-header {
-  background: linear-gradient(90deg, rgba(229,57,53,.12), transparent);
-  padding: 14px 20px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.debt-header-title { font-family: var(--display); font-size: 18px; letter-spacing: .05em; color: var(--red); }
-.debt-header-sub   { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
-.debt-counter-main {
-  padding: 24px 20px; text-align: center;
-  border-bottom: 1px solid var(--border);
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(229,57,53,.06), transparent);
-}
-.debt-counter-label { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-.debt-counter-num {
-  font-family: var(--display); font-size: clamp(28px, 4vw, 48px);
-  color: var(--red); letter-spacing: .02em; line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.debt-counter-per-sec { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
-.debt-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1px; background: var(--border);
-}
-.debt-cell {
-  background: var(--s1); padding: 16px 20px;
-  transition: background .15s;
-}
-.debt-cell:hover { background: var(--s2); }
-.debt-cell-label { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-.debt-cell-value { font-family: var(--display); font-size: 22px; color: var(--text); line-height: 1; }
-.debt-cell-value.red  { color: var(--red); }
-.debt-cell-value.warn { color: var(--orange); }
-.debt-cell-value.good { color: var(--green); }
-.debt-cell-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
-.debt-vs-bar-wrap { margin-top: 8px; }
-.debt-vs-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 4px; }
-.debt-vs-seg { height: 100%; }
-.debt-ticker-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 20px; border-top: 1px solid var(--border);
-  font-family: var(--mono); font-size: 11px;
-}
-.debt-ticker-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.debt-ticker-val { color: var(--red); font-weight: 500; font-variant-numeric: tabular-nums; }
-.debt-ticker-lbl { color: var(--muted); font-size: 9px; letter-spacing: .06em; }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 5px; }
@@ -902,111 +852,6 @@ body::before {
   </div>
 
 
-  <!-- ⑨ DEBT CLOCK ──────────────────────────────────────────────────── -->
-  <div class="section-wrap">
-    <div class="section-title" id="debt-section-title">National Debt Clock — United States</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:16px">
-      Real-time estimate based on latest Treasury + FRED data · ticks every second
-    </div>
-
-    <!-- Main counter -->
-    <div class="debt-wrap">
-      <div class="debt-header">
-        <div>
-          <div class="debt-header-title" id="debt-title">🇺🇸 U.S. National Debt</div>
-          <div class="debt-header-sub" id="debt-subtitle">Source: U.S. Treasury / FRED · Updated hourly</div>
-        </div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="debt-asof"></div>
-      </div>
-
-      <div class="debt-counter-main">
-        <div class="debt-counter-label">Total National Debt</div>
-        <div class="debt-counter-num" id="debt-total">$—</div>
-        <div class="debt-counter-per-sec" id="debt-per-sec">calculating…</div>
-      </div>
-
-      <!-- Per-second tickers -->
-      <div class="debt-ticker-row">
-        <div class="debt-ticker-item">
-          <div class="debt-ticker-val" id="tick-debt">+$—</div>
-          <div class="debt-ticker-lbl">DEBT / SEC</div>
-        </div>
-        <div class="debt-ticker-item">
-          <div class="debt-ticker-val" id="tick-deficit">+$—</div>
-          <div class="debt-ticker-lbl">DEFICIT / SEC</div>
-        </div>
-        <div class="debt-ticker-item">
-          <div class="debt-ticker-val" id="tick-interest">+$—</div>
-          <div class="debt-ticker-lbl">INTEREST / SEC</div>
-        </div>
-        <div class="debt-ticker-item">
-          <div class="debt-ticker-val" id="tick-spending">+$—</div>
-          <div class="debt-ticker-lbl">SPENDING / SEC</div>
-        </div>
-      </div>
-
-      <!-- Metric grid -->
-      <div class="debt-grid">
-        <div class="debt-cell">
-          <div class="debt-cell-label">Debt per Citizen</div>
-          <div class="debt-cell-value red" id="debt-per-citizen">—</div>
-          <div class="debt-cell-sub" id="debt-pop">Based on population</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Debt / GDP Ratio</div>
-          <div class="debt-cell-value warn" id="debt-gdp-ratio">—</div>
-          <div class="debt-cell-sub" id="debt-gdp-val">GDP: —</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Federal Revenue</div>
-          <div class="debt-cell-value good" id="debt-revenue">—</div>
-          <div class="debt-cell-sub">Annual</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Federal Spending</div>
-          <div class="debt-cell-value red" id="debt-spending">—</div>
-          <div class="debt-cell-sub">Annual</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Annual Deficit</div>
-          <div class="debt-cell-value red" id="debt-deficit">—</div>
-          <div class="debt-cell-sub">Spending − Revenue</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Interest on Debt</div>
-          <div class="debt-cell-value warn" id="debt-interest">—</div>
-          <div class="debt-cell-sub">Annual payments</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Social Security</div>
-          <div class="debt-cell-value warn" id="debt-ss">—</div>
-          <div class="debt-cell-sub">Annual outlays</div>
-        </div>
-        <div class="debt-cell">
-          <div class="debt-cell-label">Unfunded Liabilities</div>
-          <div class="debt-cell-value red" id="debt-unfunded">~$175T</div>
-          <div class="debt-cell-sub">SS + Medicare est.</div>
-        </div>
-      </div>
-
-      <!-- Spending vs Revenue bar -->
-      <div style="padding:16px 20px;border-top:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:6px">
-          <span>Revenue vs Spending</span>
-          <span id="debt-surplus-label">—</span>
-        </div>
-        <div style="height:8px;border-radius:4px;background:var(--s3);overflow:hidden">
-          <div id="debt-rev-bar" style="height:100%;background:var(--green);border-radius:4px;transition:width .5s;width:0%"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:4px">
-          <span id="debt-rev-label">Revenue</span>
-          <span id="debt-spend-label">Spending</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="data-source" id="debt-source">Source: U.S. Treasury, FRED, Statistics Canada · Updated hourly</div>
-  </div>
 
   <!-- FOOTER -->
   <div style="border-top:1px solid var(--border); padding-top:20px; font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px">
@@ -1189,8 +1034,6 @@ function renderCountryData(c) {
 
   // Fetch live scores for selected country
   fetchLiveRates(c);
-  // Update debt clock for country
-  if (debtData) renderDebtClock(c, debtData);
 }
 
 // ── Live data fetch via FRED (same API as main tracker) ──────────────────────
@@ -1313,7 +1156,7 @@ async function fetchMetals() {
 
   // 1. /api/metals — our Vercel server proxy (most reliable, server-side fetch)
   try {
-    const r = await fetch('/api/metals', { cache: 'no-cache' });
+    const r = await fetch('/api/metals', { cache: 'no-cache', signal: AbortSignal.timeout(10000) });
     if (r.ok) {
       const j = await r.json();
       if (j?.gold?.price && j.gold.price > 500) {
@@ -1362,16 +1205,31 @@ async function fetchMetals() {
 
   // 3. metals.live direct
   try {
-    const r = await fetch('https://api.metals.live/v1/spot', { cache: 'no-cache' });
+    const r = await fetch('https://api.metals.live/v1/spot', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
     if (r.ok) {
       const j = await r.json();
-      if (j?.gold   && j.gold   > 500) setPrice('gold-p', j.gold,   '$', 0);
-      if (j?.silver && j.silver > 5)   setPrice('silv-p', j.silver, '$', 2);
-      if (j?.platinum && j.platinum > 100) setPrice('plat-p', j.platinum, '$', 0);
+      if (j?.gold   && j.gold   > 3000) setPrice('gold-p', j.gold,   '$', 0);
+      if (j?.silver && j.silver > 40)   setPrice('silv-p', j.silver, '$', 2);
+      if (j?.platinum && j.platinum > 500) setPrice('plat-p', j.platinum, '$', 0);
       return true;
     }
-  } catch { /* keep defaults */ }
+  } catch { /* try hardcoded */ }
 
+  // 4. Last resort: show last known values so page isn't blank
+  const KNOWN_PRICES = {
+    gold: 3020, silver: 33.50, platinum: 988,
+    sp500: 5580, dji: 41800
+  };
+  if (document.getElementById('gold-p').textContent === '—') {
+    setPrice('gold-p', KNOWN_PRICES.gold, '$', 0);
+    document.getElementById('gold-d').textContent = '~est';
+    document.getElementById('gold-d').className = 'inv-change-flat';
+  }
+  if (document.getElementById('silv-p').textContent === '—') {
+    setPrice('silv-p', KNOWN_PRICES.silver, '$', 2);
+    document.getElementById('silv-d').textContent = '~est';
+    document.getElementById('silv-d').className = 'inv-change-flat';
+  }
   return false;
 }
 
@@ -1461,10 +1319,11 @@ async function loadCalendar(week) {
 
   const srcEl = document.getElementById('cal-source');
 
-  // Try ForexFactory directly from browser first
+  // Try ForexFactory directly from browser first (with timeout)
   const ffFile = calWeek === 'next' ? 'nextweek' : 'thisweek';
   try {
-    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`);
+    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_${ffFile}.json?version=1`,
+      { signal: AbortSignal.timeout(4000) });
     if (r.ok) {
       const data = await r.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -1616,145 +1475,6 @@ fetchCrypto();
 loadCalendar('this');
 
 
-// ── DEBT CLOCK ────────────────────────────────────────────────────────────────
-let debtData = null;
-let debtBase = 0;        // base debt value from API
-let debtBaseTs = 0;      // timestamp when we got the base value
-let debtPerSec = 0;      // dollars added per second
-let deficitPerSec = 0;
-let interestPerSec = 0;
-let spendingPerSec = 0;
-let debtTickInterval = null;
-
-async function fetchDebtData(c) {
-  c = c || country;
-  try {
-    const r = await fetch('/api/debt');
-    if (!r.ok) return;
-    const j = await r.json();
-    debtData = j;
-    renderDebtClock(c, j);
-  } catch { /* keep blank */ }
-}
-
-function renderDebtClock(c, j) {
-  const d = c === 'ca' ? j.ca : j.us;
-  if (!d) return;
-
-  const isCA = c === 'ca';
-
-  // Update labels
-  document.getElementById('debt-section-title').textContent = isCA
-    ? 'National Debt Clock — Canada'
-    : 'National Debt Clock — United States';
-  document.getElementById('debt-title').textContent = isCA
-    ? '🇨🇦 Canada Federal Debt'
-    : '🇺🇸 U.S. National Debt';
-  document.getElementById('debt-subtitle').textContent = isCA
-    ? 'Source: Statistics Canada / PBO · Updated hourly'
-    : 'Source: U.S. Treasury / FRED · Updated hourly';
-  document.getElementById('debt-source').textContent = isCA
-    ? 'Source: Statistics Canada, Bank of Canada · Updated hourly'
-    : 'Source: U.S. Treasury, FRED · Updated hourly';
-
-  // Set up live ticker
-  if (d.debt_total) {
-    const secondsSinceData = (Date.now() - j.ts) / 1000;
-    debtBase      = d.debt_total;
-    debtBaseTs    = j.ts;
-    debtPerSec    = d.debt_per_sec   || 0;
-    deficitPerSec = d.deficit_per_sec || 0;
-    spendingPerSec= d.spending ? d.spending / (365.25*24*3600) : 0;
-    interestPerSec= d.interest ? d.interest / (365.25*24*3600) : 0;
-
-    // Update per-sec labels
-    document.getElementById('debt-per-sec').textContent =
-      '≈ +$' + Math.round(debtPerSec).toLocaleString() + ' per second';
-
-    // Start ticking
-    if (debtTickInterval) clearInterval(debtTickInterval);
-    updateDebtTicker();
-    debtTickInterval = setInterval(updateDebtTicker, 1000);
-  }
-
-  // Debt per citizen
-  if (d.debt_per_citizen) {
-    document.getElementById('debt-per-citizen').textContent =
-      (isCA ? 'C$' : '$') + Math.round(d.debt_per_citizen).toLocaleString();
-    document.getElementById('debt-pop').textContent =
-      'Pop: ' + (d.population ? (d.population/1e6).toFixed(1)+'M' : '—');
-  }
-
-  // Debt/GDP
-  if (d.debt_to_gdp) {
-    document.getElementById('debt-gdp-ratio').textContent = d.debt_to_gdp + '%';
-    document.getElementById('debt-gdp-val').textContent =
-      'GDP: ' + (d.gdp ? formatBig(d.gdp, isCA ? 'C$' : '$') : '—');
-    const el = document.getElementById('debt-gdp-ratio');
-    el.className = 'debt-cell-value ' + (parseFloat(d.debt_to_gdp) > 120 ? 'red' : parseFloat(d.debt_to_gdp) > 80 ? 'warn' : 'good');
-  }
-
-  // Revenue / Spending
-  if (d.revenue)  document.getElementById('debt-revenue').textContent  = formatBig(d.revenue,  isCA?'C$':'$');
-  if (d.spending) document.getElementById('debt-spending').textContent = formatBig(d.spending, isCA?'C$':'$');
-  if (d.deficit) {
-    document.getElementById('debt-deficit').textContent = formatBig(Math.abs(d.deficit), isCA?'C$':'$');
-    document.getElementById('debt-surplus-label').textContent =
-      d.deficit > 0 ? '⚠ Deficit' : '✓ Surplus';
-  }
-  if (d.interest)        document.getElementById('debt-interest').textContent = formatBig(d.interest, isCA?'C$':'$');
-  if (d.social_security) document.getElementById('debt-ss').textContent      = formatBig(d.social_security, '$');
-
-  // Revenue vs spending bar
-  if (d.revenue && d.spending) {
-    const pct = Math.min(99, Math.round(d.revenue / d.spending * 100));
-    document.getElementById('debt-rev-bar').style.width = pct + '%';
-    document.getElementById('debt-rev-label').textContent  = 'Revenue: ' + formatBig(d.revenue, isCA?'C$':'$');
-    document.getElementById('debt-spend-label').textContent = 'Spending: ' + formatBig(d.spending, isCA?'C$':'$');
-  }
-
-  // Unfunded liabilities
-  if (!isCA) {
-    document.getElementById('debt-unfunded').textContent = '~$175T';
-  } else {
-    document.getElementById('debt-unfunded').textContent = '~C$3.2T';
-    document.getElementById('debt-unfunded').nextElementSibling.textContent = 'CPP + OAS est.';
-  }
-
-  document.getElementById('debt-asof').textContent =
-    d.debt_date ? 'As of ' + d.debt_date : '';
-}
-
-function updateDebtTicker() {
-  if (!debtBase) return;
-  const elapsed = (Date.now() - debtBaseTs) / 1000;
-  const current = debtBase + (debtPerSec * elapsed);
-
-  const isCA = country === 'ca';
-  const sym  = isCA ? 'C$' : '$';
-
-  document.getElementById('debt-total').textContent =
-    sym + Math.round(current).toLocaleString();
-
-  // Per-second tickers
-  const fmt = v => '+' + sym + Math.round(v).toLocaleString();
-  document.getElementById('tick-debt').textContent     = fmt(debtPerSec);
-  document.getElementById('tick-deficit').textContent  = fmt(deficitPerSec);
-  document.getElementById('tick-interest').textContent = fmt(interestPerSec);
-  document.getElementById('tick-spending').textContent = fmt(spendingPerSec);
-}
-
-function formatBig(n, sym='$') {
-  if (!n) return '—';
-  if (n >= 1e12) return sym + (n/1e12).toFixed(2) + 'T';
-  if (n >= 1e9)  return sym + (n/1e9).toFixed(1) + 'B';
-  if (n >= 1e6)  return sym + (n/1e6).toFixed(1) + 'M';
-  return sym + Math.round(n).toLocaleString();
-}
-
-// Load on init (debt)
-fetchDebtData(country);
-setInterval(() => fetchDebtData(country), 3600000); // refresh hourly
 
 </script>
 </body>
