@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>National Debt Clock — US & Canada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #080a0e;
+  --s1:        #0d1018;
+  --s2:        #141824;
+  --s3:        #1c2232;
+  --border:    rgba(255,255,255,.07);
+  --border2:   rgba(255,255,255,.15);
+  --text:      #e8eaf0;
+  --muted:     #5a6278;
+  --red:       #e53935;
+  --red-dim:   rgba(229,57,53,.15);
+  --orange:    #f07030;
+  --yellow:    #f5c518;
+  --green:     #1db974;
+  --blue:      #3a7bd5;
+  --mono:      'Share Tech Mono', monospace;
+  --display:   'Bebas Neue', sans-serif;
+  --sans:      'DM Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 10% 0%,   rgba(229,57,53,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 100%,  rgba(58,123,213,.06) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,   rgba(240,112,48,.04) 0%, transparent 50%);
+}
+
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 1300px; margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+/* ── NAV ── */
+.topnav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;
+}
+.topnav a {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--muted); text-decoration: none; font-size: 11px;
+  letter-spacing: .08em; text-transform: uppercase; transition: color .15s;
+}
+.topnav a:hover { color: var(--text); }
+.topnav .live-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+}
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+.pulse.loading { background: var(--yellow); }
+.pulse.error   { background: var(--red); animation: none; }
+
+/* ── COUNTRY TOGGLE ── */
+.country-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 999px; padding: 5px 14px; font-size: 12px;
+}
+.clbl { cursor: pointer; transition: color .2s, font-weight .2s; }
+.clbl.active { color: var(--text); font-weight: 600; }
+.clbl:not(.active) { color: var(--muted); }
+.sw { position: relative; width: 38px; height: 22px; cursor: pointer; }
+.sw-track { position: absolute; inset: 0; background: var(--s3); border: 1px solid var(--border2); border-radius: 11px; }
+.sw-thumb { position: absolute; width: 16px; height: 16px; top: 2px; left: 2px; border-radius: 50%; background: var(--red); transition: transform .25s, background .25s; }
+.sw-thumb.ca { transform: translateX(16px); background: var(--green); }
+
+/* ── HERO ── */
+.hero { margin-bottom: 24px; }
+.hero h1 {
+  font-family: var(--display);
+  font-size: clamp(32px, 5vw, 60px);
+  letter-spacing: 2px; line-height: 1;
+}
+.hero h1 .accent { color: var(--red); }
+.hero .sub {
+  font-size: 11px; color: var(--muted);
+  letter-spacing: .1em; text-transform: uppercase; margin-top: 5px;
+}
+
+/* ── MAIN DEBT COUNTER ── */
+.debt-hero {
+  background: var(--s1);
+  border: 1px solid rgba(229,57,53,.35);
+  border-radius: 10px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.debt-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(229,57,53,.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.debt-hero-label {
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px; font-family: var(--mono);
+}
+.debt-counter {
+  font-family: var(--mono);
+  font-size: clamp(32px, 5vw, 62px);
+  font-weight: 700;
+  color: var(--red);
+  letter-spacing: 2px;
+  line-height: 1;
+  transition: color .3s;
+  word-break: break-all;
+}
+.debt-counter.ca { color: var(--orange); }
+.debt-per-sec {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--red);
+  opacity: .8;
+}
+.debt-as-of {
+  margin-top: 6px; font-size: 10px;
+  color: var(--muted); font-family: var(--mono);
+}
+.debt-hero-meta {
+  display: flex; gap: 24px; margin-top: 16px;
+  flex-wrap: wrap;
+}
+.dhm-item { display: flex; flex-direction: column; gap: 3px; }
+.dhm-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); }
+.dhm-val   { font-family: var(--mono); font-size: 15px; color: var(--text); font-weight: 600; }
+.dhm-val.red    { color: var(--red); }
+.dhm-val.orange { color: var(--orange); }
+.dhm-val.yellow { color: var(--yellow); }
+
+/* ── REAL-TIME TICKERS ── */
+.tickers-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  margin-bottom: 20px;
+}
+@media(max-width:700px) { .tickers-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:450px) { .tickers-grid { grid-template-columns: 1fr; } }
+
+.ticker-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s;
+}
+.ticker-card:hover { border-color: var(--border2); }
+.ticker-card::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent, var(--red));
+  border-radius: 8px 8px 0 0;
+}
+.tc-label  { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); margin-bottom: 8px; }
+.tc-val    { font-family: var(--mono); font-size: clamp(17px, 2.5vw, 24px); font-weight: 700; color: var(--text); line-height: 1.1; }
+.tc-change { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+/* ── DATA GRID ── */
+.data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media(max-width:700px) { .data-grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+.panel-head {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between; font-family: var(--mono);
+}
+.panel-body { padding: 12px 14px; }
+
+.kv-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.kv-row:last-child { border-bottom: none; }
+.kv-label { color: var(--muted); flex: 1; }
+.kv-val   { font-family: var(--mono); font-weight: 600; color: var(--text); text-align: right; }
+.kv-val.red    { color: var(--red); }
+.kv-val.orange { color: var(--orange); }
+.kv-val.yellow { color: var(--yellow); }
+.kv-val.green  { color: var(--green); }
+.kv-val.muted  { color: var(--muted); }
+
+/* ── WORLD DEBT TABLE ── */
+.world-panel { margin-bottom: 20px; }
+.world-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.world-table thead th {
+  text-align: left; padding: 8px 10px;
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+  font-family: var(--mono); white-space: nowrap;
+}
+.world-table thead th:not(:first-child) { text-align: right; }
+.world-table tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+.world-table tbody tr:last-child { border-bottom: none; }
+.world-table tbody tr:hover { background: rgba(255,255,255,.025); }
+.world-table td { padding: 9px 10px; }
+.world-table td:not(:first-child) { text-align: right; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.country-cell { display: flex; align-items: center; gap: 8px; }
+.flag-emoji { font-size: 16px; flex-shrink: 0; }
+.debt-bar-track { flex: 0 0 80px; height: 4px; background: var(--s3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 8px; }
+.debt-bar-fill  { height: 100%; border-radius: 99px; }
+.gdp-ratio-cell { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+/* ── HISTORY CHART ── */
+.chart-wrap { width: 100%; height: 120px; }
+.chart-svg  { width: 100%; height: 100%; }
+
+/* ── FOOTER ── */
+.footer {
+  font-size: 10px; color: var(--muted); margin-top: 20px;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+  border-top: 1px solid var(--border); padding-top: 14px;
+}
+.footer a { color: var(--muted); text-decoration: underline; }
+
+/* ── DATA SOURCE TAG ── */
+.src-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-family: var(--mono); color: var(--muted);
+  padding: 2px 7px; border: 1px solid var(--border); border-radius: 4px;
+}
+.src-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+.src-dot.warn { background: var(--yellow); }
+.src-dot.err  { background: var(--red); }
+
+/* ── ANIMATION ── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.debt-hero, .tickers-grid, .data-grid, .world-panel { animation: fadeUp .4s ease both; }
+.tickers-grid { animation-delay: .05s; }
+.data-grid    { animation-delay: .1s; }
+.world-panel  { animation-delay: .15s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- NAV -->
+  <div class="topnav">
+    <a href="/">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Housing Tracker
+    </a>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="live-dot">
+        <span class="pulse loading" id="pulse"></span>
+        <span id="status-txt">Fetching live data…</span>
+      </div>
+      <div class="country-row">
+        <span style="font-size:16px">🇺🇸</span>
+        <span class="clbl active" id="lbl-us" onclick="setCountry('us')">US</span>
+        <div class="sw" onclick="toggleCountry()">
+          <div class="sw-track"></div>
+          <div class="sw-thumb" id="sw-thumb"></div>
+        </div>
+        <span class="clbl" id="lbl-ca" onclick="setCountry('ca')">CA</span>
+        <span style="font-size:16px">🇨🇦</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1><span class="accent">Debt</span> Clock</h1>
+    <div class="sub">Live national debt tracker — US Treasury · FRED · Bank of Canada</div>
+  </div>
+
+  <!-- MAIN COUNTER -->
+  <div class="debt-hero">
+    <div class="debt-hero-label" id="counter-label">🇺🇸 United States National Debt</div>
+    <div class="debt-counter" id="main-counter">$36,500,000,000,000</div>
+    <div class="debt-per-sec" id="debt-per-sec">↑ +$57,042 per second</div>
+    <div class="debt-as-of" id="debt-as-of">As of: loading… <span id="src-badge" class="src-tag"><span class="src-dot warn"></span>loading</span></div>
+    <div class="debt-hero-meta">
+      <div class="dhm-item">
+        <span class="dhm-label">Debt per Citizen</span>
+        <span class="dhm-val red" id="per-citizen">—</span>
+      </div>
+      <div class="dhm-item">
+        <span class="dhm-label">Debt / GDP</span>
+        <span class="dhm-val orange" id="debt-gdp">—</span>
+      </div>
+      <div class="dhm-item">
+        <span class="dhm-label">Annual Deficit</span>
+        <span class="dhm-val red" id="annual-deficit">—</span>
+      </div>
+      <div class="dhm-item">
+        <span class="dhm-label">Annual Interest</span>
+        <span class="dhm-val orange" id="annual-interest">—</span>
+      </div>
+      <div class="dhm-item">
+        <span class="dhm-label">Annual Spending</span>
+        <span class="dhm-val yellow" id="annual-spending">—</span>
+      </div>
+      <div class="dhm-item">
+        <span class="dhm-label">Annual Revenue</span>
+        <span class="dhm-val green" id="annual-revenue">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- REAL-TIME TICKERS -->
+  <div class="tickers-grid">
+    <div class="ticker-card" style="--accent:var(--red)">
+      <div class="tc-label">💸 Deficit this second</div>
+      <div class="tc-val" id="tick-deficit">$0</div>
+      <div class="tc-change" id="tick-deficit-since">Since page load: $0</div>
+    </div>
+    <div class="ticker-card" style="--accent:var(--orange)">
+      <div class="tc-label">💰 Interest this second</div>
+      <div class="tc-val" id="tick-interest">$0</div>
+      <div class="tc-change" id="tick-interest-since">Since page load: $0</div>
+    </div>
+    <div class="ticker-card" style="--accent:var(--yellow)">
+      <div class="tc-label">🏛 Gov't spending this second</div>
+      <div class="tc-val" id="tick-spending">$0</div>
+      <div class="tc-change" id="tick-spending-since">Since page load: $0</div>
+    </div>
+    <div class="ticker-card" style="--accent:var(--blue)">
+      <div class="tc-label">👤 Debt per citizen added today</div>
+      <div class="tc-val" id="tick-citizen">$0</div>
+      <div class="tc-change" id="tick-citizen-label">Since midnight ET</div>
+    </div>
+    <div class="ticker-card" style="--accent:var(--green)">
+      <div class="tc-label">📈 Tax revenue this second</div>
+      <div class="tc-val" id="tick-revenue">$0</div>
+      <div class="tc-change" id="tick-revenue-since">Since page load: $0</div>
+    </div>
+    <div class="ticker-card" style="--accent:var(--muted)">
+      <div class="tc-label">🌍 World debt added today</div>
+      <div class="tc-val" id="tick-world">$0</div>
+      <div class="tc-change">~$27.4T added per year globally</div>
+    </div>
+  </div>
+
+  <!-- DATA PANELS -->
+  <div class="data-grid">
+    <!-- Fiscal breakdown -->
+    <div class="panel">
+      <div class="panel-head">
+        <span id="fiscal-title">Fiscal Breakdown</span>
+        <span id="fiscal-src"></span>
+      </div>
+      <div class="panel-body" id="fiscal-body">
+        <div style="color:var(--muted);font-size:12px;padding:10px 0">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Debt history chart -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>US National Debt — Historical</span>
+        <span class="src-tag"><span class="src-dot"></span>Treasury Fiscal Data</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          <div>
+            <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">Current</div>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--red)" id="chart-current">$36.5T</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)">10yr Growth</div>
+            <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--orange)" id="chart-growth">+107%</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <svg class="chart-svg" id="debt-chart" viewBox="0 0 400 110" preserveAspectRatio="none">
+            <text x="200" y="55" text-anchor="middle" fill="rgba(255,255,255,.12)" font-size="11" font-family="monospace">Loading chart…</text>
+          </svg>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:4px">
+          <span id="chart-from">2000</span>
+          <span>Now</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORLD DEBT TABLE -->
+  <div class="panel world-panel">
+    <div class="panel-head">
+      <span>🌍 World Debt Clock — Major Economies</span>
+      <span style="font-size:9px;color:var(--muted)">IMF WEO 2025 · IMF Article IV · Trading Economics</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="world-table">
+        <thead>
+          <tr>
+            <th>Country</th>
+            <th>Total Debt (USD)</th>
+            <th>Debt / GDP</th>
+            <th>Per Capita</th>
+            <th>Annual Deficit</th>
+            <th>Interest / yr</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody id="world-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Loading world debt data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      Debt Clock · Part of Housing Tracker · <a href="/">Back to Main</a>
+    </div>
+    <div>
+      US Data: <a href="https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/" target="_blank">Treasury Fiscal Data</a> ·
+      <a href="https://fred.stlouisfed.org" target="_blank">FRED</a> ·
+      World: IMF WEO 2025 · Updated daily
+    </div>
+  </div>
+
+</div><!-- end wrap -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let activeCountry = 'us';
+let debtData = { us: null, ca: null };
+let tickInterval = null;
+let pageLoadTime = Date.now();
+
+// ── Fallback constants (current March 2026 estimates) ─────────────────────────
+const FALLBACK = {
+  us: {
+    debt:          36_500_000_000_000,
+    gdp:           29_300_000_000_000,
+    population:       335_000_000,
+    revenue:        4_900_000_000_000,
+    spending:       6_700_000_000_000,
+    deficit:        1_800_000_000_000,
+    interest:         900_000_000_000,
+    social_security:1_400_000_000_000,
+    debt_to_gdp:      '124.6',
+    debt_per_citizen: 108955,
+    source: 'fallback',
+    debt_date: '2026-01-31',
+  },
+  ca: {
+    debt:          1_400_000_000_000,
+    gdp:           2_800_000_000_000,
+    population:       40_000_000,
+    revenue:         500_000_000_000,
+    spending:        550_000_000_000,
+    deficit:          50_000_000_000,
+    interest:         55_000_000_000,
+    social_security: 120_000_000_000,
+    debt_to_gdp:      '50.0',
+    debt_per_citizen:  35000,
+    source: 'fallback',
+    debt_date: '2025-12-31',
+  }
+};
+
+// ── Format helpers ─────────────────────────────────────────────────────────────
+const fmtDollar  = (n, decimals=0) => '$' + Math.round(n).toLocaleString('en-US');
+const fmtT       = (n) => {
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6)  return '$' + (n / 1e6).toFixed(1) + 'M';
+  return '$' + Math.round(n).toLocaleString();
+};
+const fmtFull = (n) => {
+  // Full dollar string like $36,500,324,821,443
+  return '$' + Math.round(n).toLocaleString('en-US');
+};
+
+// ── STEP 1: Try Treasury Fiscal Data API (live, no key, CORS open) ────────────
+async function fetchTreasuryLiveDebt() {
+  try {
+    const url = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&limit=2';
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const data = j?.data;
+    if (!data || !data.length) throw new Error('no data');
+    const latest = data[0];
+    const prev   = data[1];
+    const debt   = parseFloat(latest.tot_pub_debt_out_amt);
+    const prevDebt = prev ? parseFloat(prev.tot_pub_debt_out_amt) : null;
+    if (isNaN(debt) || debt < 1e12) throw new Error('bad value');
+    return {
+      debt,
+      prevDebt,
+      date: latest.record_date,
+      source: 'treasury_fiscal_data',
+    };
+  } catch(e) {
+    console.warn('Treasury API failed:', e.message);
+    return null;
+  }
+}
+
+// ── STEP 2: Try /api/debt (server-side with FRED) ────────────────────────────
+async function fetchApiDebt() {
+  try {
+    const r = await fetch('/api/debt', { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch(e) {
+    console.warn('/api/debt failed:', e.message);
+    return null;
+  }
+}
+
+// ── STEP 3: Fetch debt history for chart ─────────────────────────────────────
+async function fetchDebtHistory() {
+  try {
+    // Annual records going back ~20 years — sort ascending
+    const url = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&limit=5000&filter=record_date:gte:2000-01-01';
+    const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    if (!j?.data?.length) throw new Error('no data');
+    // Sample yearly for chart
+    const allData = j.data.reverse(); // ascending
+    // Pick one record per year (first of each year)
+    const byYear = {};
+    allData.forEach(d => {
+      const yr = d.record_date.slice(0,4);
+      if (!byYear[yr]) byYear[yr] = parseFloat(d.tot_pub_debt_out_amt);
+    });
+    return Object.entries(byYear).map(([yr, debt]) => ({ year: parseInt(yr), debt })).filter(d => d.debt > 1e12);
+  } catch(e) {
+    console.warn('History fetch failed:', e.message);
+    // Return known historical data as fallback
+    return [
+      {year:2000, debt:5674178209886},   {year:2001, debt:5807463412200},
+      {year:2002, debt:6228235965597},   {year:2003, debt:6783231062743},
+      {year:2004, debt:7379052696330},   {year:2005, debt:7932709661723},
+      {year:2006, debt:8507021030471},   {year:2007, debt:9007653372262},
+      {year:2008, debt:10699804864612},  {year:2009, debt:12311349677512},
+      {year:2010, debt:13561623030000},  {year:2011, debt:15125898976000},
+      {year:2012, debt:16066241407385},  {year:2013, debt:16738183526000},
+      {year:2014, debt:17824071380000},  {year:2015, debt:18150617666000},
+      {year:2016, debt:19976827083000},  {year:2017, debt:20244900016000},
+      {year:2018, debt:21516058183000},  {year:2019, debt:23201380000000},
+      {year:2020, debt:27747792000000},  {year:2021, debt:29617016500000},
+      {year:2022, debt:30928911890000},  {year:2023, debt:33167000000000},
+      {year:2024, debt:34600000000000},  {year:2025, debt:36200000000000},
+      {year:2026, debt:36500000000000},
+    ];
+  }
+}
+
+// ── MAIN BOOT ─────────────────────────────────────────────────────────────────
+async function init() {
+  setPulse('loading', 'Fetching live data…');
+
+  // Fetch everything in parallel
+  const [treasuryLive, apiResult, history] = await Promise.all([
+    fetchTreasuryLiveDebt(),
+    fetchApiDebt(),
+    fetchDebtHistory(),
+  ]);
+
+  // --- Merge US data ---
+  const us = { ...FALLBACK.us };
+
+  // Layer 1: /api/debt enriched values (FRED)
+  if (apiResult?.us) {
+    const a = apiResult.us;
+    if (a.debt_total    > 1e12)  us.debt            = a.debt_total;
+    if (a.gdp           > 1e12)  us.gdp             = a.gdp;
+    if (a.population    > 1e6)   us.population      = a.population;
+    if (a.revenue       > 1e11)  us.revenue         = a.revenue;
+    if (a.spending      > 1e11)  us.spending        = a.spending;
+    if (a.deficit       > 1e10)  us.deficit         = a.deficit;
+    if (a.interest      > 1e10)  us.interest        = a.interest;
+    if (a.debt_to_gdp)           us.debt_to_gdp     = a.debt_to_gdp;
+    if (a.debt_per_citizen > 1e4) us.debt_per_citizen = a.debt_per_citizen;
+    if (a.debt_date)             us.debt_date       = a.debt_date;
+    us.source = a.source || 'FRED';
+  }
+
+  // Layer 2: Treasury live (most accurate debt number, live daily)
+  if (treasuryLive?.debt > 1e12) {
+    us.debt      = treasuryLive.debt;
+    us.debt_date = treasuryLive.date;
+    us.source    = 'treasury_fiscal_data';
+    // Recalculate per-citizen and debt/gdp
+    if (us.population) us.debt_per_citizen = Math.round(us.debt / us.population);
+    if (us.gdp)        us.debt_to_gdp      = (us.debt / us.gdp * 100).toFixed(1);
+    // Daily change for per-sec rate
+    if (treasuryLive.prevDebt && treasuryLive.prevDebt > 1e12) {
+      const dailyChange = us.debt - treasuryLive.prevDebt;
+      if (dailyChange > 0 && dailyChange < 5e10) { // sanity check
+        us.deficit_per_sec = dailyChange / 86400;
+      }
+    }
+  }
+
+  // Per-second derived rates
+  if (!us.deficit_per_sec)   us.deficit_per_sec  = us.deficit  / (365.25 * 86400);
+  if (!us.interest_per_sec)  us.interest_per_sec = us.interest / (365.25 * 86400);
+  if (!us.spending_per_sec)  us.spending_per_sec = us.spending / (365.25 * 86400);
+  if (!us.revenue_per_sec)   us.revenue_per_sec  = us.revenue  / (365.25 * 86400);
+
+  debtData.us = us;
+
+  // --- Merge CA data ---
+  const ca = { ...FALLBACK.ca };
+  if (apiResult?.ca) {
+    const a = apiResult.ca;
+    if (a.debt_total   > 1e11) ca.debt            = a.debt_total;
+    if (a.gdp          > 1e11) ca.gdp             = a.gdp;
+    if (a.population   > 1e6)  ca.population      = a.population;
+    if (a.revenue      > 1e10) ca.revenue         = a.revenue;
+    if (a.spending     > 1e10) ca.spending        = a.spending;
+    if (a.deficit      > 1e9)  ca.deficit         = a.deficit;
+    if (a.interest     > 1e9)  ca.interest        = a.interest;
+    if (a.debt_to_gdp)         ca.debt_to_gdp     = a.debt_to_gdp;
+    if (a.debt_per_citizen > 1e3) ca.debt_per_citizen = a.debt_per_citizen;
+    if (a.debt_date)           ca.debt_date       = a.debt_date;
+    ca.source = a.source || 'StatsCan/FRED';
+  }
+  ca.deficit_per_sec  = ca.deficit  / (365.25 * 86400);
+  ca.interest_per_sec = ca.interest / (365.25 * 86400);
+  ca.spending_per_sec = ca.spending / (365.25 * 86400);
+  ca.revenue_per_sec  = ca.revenue  / (365.25 * 86400);
+  debtData.ca = ca;
+
+  // Render chart with history
+  renderChart(history);
+
+  // Render world table
+  renderWorld(us, apiResult);
+
+  // Set source label
+  const srcLabel = us.source === 'treasury_fiscal_data'
+    ? '✓ Live: US Treasury Fiscal Data'
+    : us.source === 'FRED'
+    ? '✓ Live: FRED / St. Louis Fed'
+    : '⚠ Estimated (API unavailable)';
+
+  const srcBadge = document.getElementById('src-badge');
+  if (us.source === 'treasury_fiscal_data' || us.source === 'FRED') {
+    srcBadge.innerHTML = '<span class="src-dot"></span>' + srcLabel;
+  } else {
+    srcBadge.innerHTML = '<span class="src-dot warn"></span>' + srcLabel;
+  }
+  setPulse('live', 'Live data loaded');
+
+  // Render & start ticking
+  renderCountry(activeCountry);
+  startTicker();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderCountry(c) {
+  const d = debtData[c] || FALLBACK[c];
+  const isCA = c === 'ca';
+
+  // Counter
+  document.getElementById('counter-label').textContent =
+    isCA ? '🇨🇦 Canada Federal Debt' : '🇺🇸 United States National Debt';
+  document.getElementById('main-counter').className = 'debt-counter' + (isCA ? ' ca' : '');
+
+  // Debt per sec display
+  const dps = d.deficit_per_sec || 0;
+  document.getElementById('debt-per-sec').textContent =
+    '↑ +' + fmtDollar(dps) + ' per second';
+  document.getElementById('debt-per-sec').style.color = isCA ? 'var(--orange)' : 'var(--red)';
+
+  // Meta
+  document.getElementById('per-citizen').textContent = fmtDollar(d.debt_per_citizen || 0);
+  document.getElementById('debt-gdp').textContent     = (d.debt_to_gdp || '—') + '%';
+  document.getElementById('annual-deficit').textContent  = fmtT(d.deficit || 0);
+  document.getElementById('annual-interest').textContent = fmtT(d.interest || 0);
+  document.getElementById('annual-spending').textContent = fmtT(d.spending || 0);
+  document.getElementById('annual-revenue').textContent  = fmtT(d.revenue || 0);
+
+  // As of date
+  document.getElementById('debt-as-of').innerHTML =
+    'As of: ' + (d.debt_date ? d.debt_date : 'N/A') +
+    ' &nbsp;<span id="src-badge" class="src-tag"><span class="src-dot ' +
+    (d.source === 'treasury_fiscal_data' ? '' : 'warn') + '"></span>' +
+    (d.source === 'treasury_fiscal_data' ? 'US Treasury Fiscal Data' :
+     d.source === 'FRED' ? 'FRED / St. Louis Fed' :
+     d.source === 'StatsCan' ? 'Statistics Canada' :
+     'Estimated fallback') + '</span>';
+
+  // Fiscal panel
+  renderFiscal(d, c);
+
+  // Chart label
+  document.getElementById('chart-current').textContent = fmtT(d.debt || 0);
+}
+
+function renderFiscal(d, c) {
+  const isCA = c === 'ca';
+  const currency = isCA ? 'C$' : '$';
+  const perSec = (v) => '$' + Math.round(v / (365.25 * 86400)).toLocaleString() + '/sec';
+  document.getElementById('fiscal-title').textContent = isCA ? '🇨🇦 Canada Fiscal Data' : '🇺🇸 US Fiscal Data';
+  document.getElementById('fiscal-src').innerHTML = '<span class="src-tag"><span class="src-dot ' +
+    (d.source !== 'fallback' ? '' : 'warn') + '"></span>' +
+    (d.source !== 'fallback' ? d.source : 'fallback') + '</span>';
+
+  document.getElementById('fiscal-body').innerHTML = [
+    ['Total Debt',      fmtT(d.debt || 0),                'red'],
+    ['GDP',             fmtT(d.gdp || 0),                 'green'],
+    ['Debt / GDP',      (d.debt_to_gdp || '—') + '%',    d.debt_to_gdp > 100 ? 'red' : d.debt_to_gdp > 60 ? 'orange' : 'green'],
+    ['Debt per Citizen',fmtDollar(d.debt_per_citizen||0), 'red'],
+    ['Annual Spending',  fmtT(d.spending || 0),           'orange'],
+    ['Annual Revenue',   fmtT(d.revenue || 0),            'green'],
+    ['Annual Deficit',   fmtT(d.deficit || 0),            'red'],
+    ['Interest / yr',    fmtT(d.interest || 0),           'orange'],
+    ['Interest / sec',   perSec(d.interest || 0),         'orange'],
+    ['Deficit / sec',    perSec(d.deficit || 0),          'red'],
+    ['Population',       (d.population || 0).toLocaleString(), ''],
+    ['Unfunded Liabilities', fmtT(d.unfunded_est || 0),   d.unfunded_est ? 'red' : 'muted'],
+  ].map(([label, val, cls]) => `
+    <div class="kv-row">
+      <span class="kv-label">${label}</span>
+      <span class="kv-val ${cls}">${val}</span>
+    </div>`).join('');
+}
+
+// ── TICKING COUNTER ───────────────────────────────────────────────────────────
+function startTicker() {
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(tick, 100); // update 10x/sec for smooth motion
+}
+
+function tick() {
+  const d = debtData[activeCountry];
+  if (!d) return;
+
+  const elapsed = (Date.now() - pageLoadTime) / 1000; // seconds since load
+  const secSinceMidnight = getSecsSinceMidnight();
+
+  // Live debt total (base + accrued since load)
+  const liveDebt = d.debt + (d.deficit_per_sec || 0) * elapsed;
+  document.getElementById('main-counter').textContent = fmtFull(liveDebt);
+
+  // Ticking counters "since page load"
+  const deficitSinceLoan  = (d.deficit_per_sec || 0) * elapsed;
+  const interestSinceLoan = (d.interest_per_sec || 0) * elapsed;
+  const spendSinceLoan    = (d.spending_per_sec || 0) * elapsed;
+  const revSinceLoan      = (d.revenue_per_sec || 0) * elapsed;
+
+  // "This second" = per-second rate as a live number
+  document.getElementById('tick-deficit').textContent   = fmtDollar(d.deficit_per_sec || 0);
+  document.getElementById('tick-interest').textContent  = fmtDollar(d.interest_per_sec || 0);
+  document.getElementById('tick-spending').textContent  = fmtDollar(d.spending_per_sec || 0);
+  document.getElementById('tick-revenue').textContent   = fmtDollar(d.revenue_per_sec || 0);
+
+  // "Since load" running totals
+  document.getElementById('tick-deficit-since').textContent   = 'Since page load: ' + fmtT(deficitSinceLoan);
+  document.getElementById('tick-interest-since').textContent  = 'Since page load: ' + fmtT(interestSinceLoan);
+  document.getElementById('tick-spending-since').textContent  = 'Since page load: ' + fmtT(spendSinceLoan);
+  document.getElementById('tick-revenue-since').textContent   = 'Since page load: ' + fmtT(revSinceLoan);
+
+  // Debt per citizen added today
+  const debtAddedToday = (d.deficit_per_sec || 0) * secSinceMidnight;
+  const perCitizenToday = d.population ? debtAddedToday / d.population : 0;
+  document.getElementById('tick-citizen').textContent = '$' + perCitizenToday.toFixed(2);
+
+  // World debt today (IMF estimate: ~$27.4T/yr added globally across all govts)
+  const worldPerSec = 27_400_000_000_000 / (365.25 * 86400);
+  document.getElementById('tick-world').textContent = fmtT(worldPerSec * secSinceMidnight);
+}
+
+function getSecsSinceMidnight() {
+  const now = new Date();
+  return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000;
+}
+
+// ── DEBT HISTORY CHART ────────────────────────────────────────────────────────
+function renderChart(history) {
+  if (!history || history.length < 2) return;
+  const svg = document.getElementById('debt-chart');
+  const W = 400, H = 110, padL = 4, padR = 4, padT = 6, padB = 4;
+  const vals = history.map(h => h.debt);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+
+  const pts = history.map((h, i) => {
+    const x = padL + (i / (history.length - 1)) * (W - padL - padR);
+    const y = padT + (1 - (h.debt - minV) / range) * (H - padT - padB);
+    return { x, y, year: h.year, debt: h.debt };
+  });
+
+  const pathD = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ');
+  const areaD = `${pathD} L${pts[pts.length-1].x},${H-padB} L${padL},${H-padB} Z`;
+
+  // Recession shading (approximate US recessions visible in debt)
+  const recessions = [
+    {start:2001.5, end:2001.75}, {start:2007.9, end:2009.5}, {start:2020.0, end:2020.4}
+  ];
+  const yearToX = (yr) => {
+    const idx = history.findIndex(h => h.year >= yr);
+    if (idx < 0) return W;
+    const frac = (yr - history[idx > 0 ? idx-1 : 0].year) / 1;
+    return padL + (idx / (history.length - 1)) * (W - padL - padR);
+  };
+  const recSVG = recessions.map(r => {
+    const x1 = yearToX(r.start), x2 = yearToX(r.end);
+    return `<rect x="${x1}" y="${padT}" width="${x2-x1}" height="${H-padT-padB}" fill="rgba(229,57,53,.08)"/>`;
+  }).join('');
+
+  // Year labels (every 5 years)
+  const yearLabels = history.filter(h => h.year % 5 === 0).map(h => {
+    const i = history.indexOf(h);
+    const x = padL + (i / (history.length - 1)) * (W - padL - padR);
+    return `<text x="${x}" y="${H}" text-anchor="middle" fill="rgba(255,255,255,.2)" font-size="7" font-family="monospace">${h.year}</text>`;
+  }).join('');
+
+  // Growth annotation
+  const growthPct = ((vals[vals.length-1] - vals[0]) / vals[0] * 100).toFixed(0);
+  document.getElementById('chart-growth').textContent = '+' + growthPct + '%';
+  document.getElementById('chart-from').textContent = history[0].year;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="debtGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#e53935" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#e53935" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${recSVG}
+    <path d="${areaD}" fill="url(#debtGrad)"/>
+    <path d="${pathD}" fill="none" stroke="#e53935" stroke-width="1.5" stroke-linejoin="round"/>
+    ${yearLabels}
+    <circle cx="${pts[pts.length-1].x}" cy="${pts[pts.length-1].y}" r="3" fill="#e53935"/>
+  `;
+}
+
+// ── WORLD DEBT TABLE ──────────────────────────────────────────────────────────
+function renderWorld(us, apiResult) {
+  // Data: IMF WEO October 2025 + IMF Article IV estimates (all USD at current exchange rates)
+  // Sources: IMF.org, tradingeconomics.com, worldbank.org
+  const WORLD = [
+    { flag:'🇺🇸', name:'United States',   debt: us.debt || 36.5e12,  gdp:  29.3e12, pop:  335e6,   deficit:  1.8e12, interest: 0.90e12, risk:'High',   riskColor:'var(--red)' },
+    { flag:'🇯🇵', name:'Japan',            debt: 9.9e12,   gdp:  4.2e12,  pop:  124e6,   deficit:  0.4e12, interest: 0.08e12, risk:'Very High', riskColor:'var(--red)' },
+    { flag:'🇨🇳', name:'China',            debt: 16.1e12,  gdp: 18.5e12,  pop: 1410e6,   deficit:  0.9e12, interest: 0.35e12, risk:'Medium', riskColor:'var(--yellow)' },
+    { flag:'🇬🇧', name:'United Kingdom',   debt: 3.5e12,   gdp:  3.4e12,  pop:   68e6,   deficit:  0.19e12,interest: 0.11e12, risk:'Medium', riskColor:'var(--yellow)' },
+    { flag:'🇫🇷', name:'France',           debt: 3.6e12,   gdp:  3.2e12,  pop:   68e6,   deficit:  0.19e12,interest: 0.06e12, risk:'Elevated',riskColor:'var(--orange)' },
+    { flag:'🇮🇹', name:'Italy',            debt: 3.1e12,   gdp:  2.3e12,  pop:   60e6,   deficit:  0.09e12,interest: 0.09e12, risk:'High',   riskColor:'var(--red)' },
+    { flag:'🇩🇪', name:'Germany',          debt: 2.9e12,   gdp:  4.7e12,  pop:   84e6,   deficit:  0.10e12,interest: 0.04e12, risk:'Low',    riskColor:'var(--green)' },
+    { flag:'🇨🇦', name:'Canada',           debt: 1.4e12,   gdp:  2.5e12,  pop:   40e6,   deficit:  0.05e12,interest: 0.055e12,risk:'Medium', riskColor:'var(--yellow)' },
+    { flag:'🇦🇺', name:'Australia',        debt: 0.85e12,  gdp:  1.8e12,  pop:   27e6,   deficit:  0.022e12,interest:0.019e12,risk:'Low',   riskColor:'var(--green)' },
+    { flag:'🇧🇷', name:'Brazil',           debt: 1.9e12,   gdp:  2.2e12,  pop:  215e6,   deficit:  0.10e12,interest: 0.12e12, risk:'High',   riskColor:'var(--red)' },
+    { flag:'🇮🇳', name:'India',            debt: 3.5e12,   gdp:  3.9e12,  pop: 1420e6,   deficit:  0.20e12,interest: 0.18e12, risk:'Medium', riskColor:'var(--yellow)' },
+    { flag:'🇰🇷', name:'South Korea',      debt: 0.90e12,  gdp:  1.8e12,  pop:   52e6,   deficit:  0.040e12,interest:0.015e12,risk:'Low',   riskColor:'var(--green)' },
+    { flag:'🇪🇸', name:'Spain',            debt: 1.6e12,   gdp:  1.7e12,  pop:   48e6,   deficit:  0.060e12,interest:0.038e12,risk:'Elevated',riskColor:'var(--orange)' },
+    { flag:'🇲🇽', name:'Mexico',           debt: 0.78e12,  gdp:  1.5e12,  pop:  130e6,   deficit:  0.050e12,interest:0.055e12,risk:'Medium', riskColor:'var(--yellow)' },
+    { flag:'🇳🇱', name:'Netherlands',      debt: 0.55e12,  gdp:  1.1e12,  pop:   18e6,   deficit:  0.014e12,interest:0.010e12,risk:'Low',   riskColor:'var(--green)' },
+  ].sort((a,b) => b.debt - a.debt);
+
+  const maxDebt = WORLD[0].debt;
+
+  // Override US and CA with live data if available
+  const caEntry = WORLD.find(w => w.name === 'Canada');
+  if (caEntry && debtData.ca?.debt > 1e11) caEntry.debt = debtData.ca.debt;
+
+  document.getElementById('world-tbody').innerHTML = WORLD.map(w => {
+    const debtGdpRatio = (w.debt / w.gdp * 100).toFixed(0);
+    const barPct = Math.min((w.debt / maxDebt) * 100, 100).toFixed(1);
+    const barColor = debtGdpRatio > 100 ? 'var(--red)' : debtGdpRatio > 70 ? 'var(--orange)' : debtGdpRatio > 50 ? 'var(--yellow)' : 'var(--green)';
+    const perCap = Math.round(w.debt / w.pop);
+    return `
+      <tr>
+        <td>
+          <div class="country-cell">
+            <span class="flag-emoji">${w.flag}</span>
+            <span>${w.name}</span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <span class="num">${fmtT(w.debt)}</span>
+            <div class="debt-bar-track"><div class="debt-bar-fill" style="width:${barPct}%;background:${barColor}"></div></div>
+          </div>
+        </td>
+        <td>
+          <div class="gdp-ratio-cell">
+            <span class="num" style="color:${barColor}">${debtGdpRatio}%</span>
+          </div>
+        </td>
+        <td class="num" style="color:var(--muted)">$${perCap.toLocaleString()}</td>
+        <td class="num" style="color:var(--red)">${fmtT(w.deficit)}</td>
+        <td class="num" style="color:var(--orange)">${fmtT(w.interest)}</td>
+        <td><span style="font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid ${w.riskColor}44;background:${w.riskColor}18;color:${w.riskColor}">${w.risk}</span></td>
+      </tr>`;
+  }).join('');
+}
+
+// ── COUNTRY TOGGLE ────────────────────────────────────────────────────────────
+function setCountry(c) {
+  activeCountry = c;
+  document.getElementById('lbl-us').classList.toggle('active', c === 'us');
+  document.getElementById('lbl-ca').classList.toggle('active', c === 'ca');
+  document.getElementById('sw-thumb').className = 'sw-thumb' + (c === 'ca' ? ' ca' : '');
+  if (debtData[c]) renderCountry(c);
+}
+function toggleCountry() {
+  setCountry(activeCountry === 'us' ? 'ca' : 'us');
+}
+
+function setPulse(state, txt) {
+  document.getElementById('pulse').className = 'pulse ' + state;
+  document.getElementById('status-txt').textContent = txt;
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
